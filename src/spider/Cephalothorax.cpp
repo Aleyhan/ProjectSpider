@@ -1,3 +1,4 @@
+// Cephalothorax.cpp
 #include "spider/Cephalothorax.h"
 #include "global/GlobalConfig.h"
 #include "utils/PerlinNoise.h"
@@ -169,30 +170,63 @@ const std::vector<vec3>& Cephalothorax::getVertexPositions() const {
 }
 
 std::vector<vec3> Cephalothorax::getLegAttachmentPoints() const {
-    std::vector<vec3> leftSidePoints;
-    std::vector<vec3> rightSidePoints;
     std::vector<vec3> attachmentPoints;
+    attachmentPoints.reserve(8);
+    const int points_per_side = 4;
 
-    // Find extreme X values (keep this part the same)
-    float maxX = -std::numeric_limits<float>::max();
-    float minX = std::numeric_limits<float>::max();
+    // Cephalothorax dimensions based on GlobalConfig constants
+    const float cephBaseRadius = ABDOMEN_RADIUS * 0.8f;
+    const float cephRadiusX = cephBaseRadius * ABDOMEN_SCALE_X * 0.7f;
+    const float cephRadiusZ = cephBaseRadius * ABDOMEN_SCALE_Z * 1.1f;
 
-    for (const vec3& vertex : _vertexPositionsNormal) {
-        if (vertex.x > maxX) maxX = vertex.x;
-        if (vertex.x < minX) minX = vertex.x;
+    if (_vertexPositionsNormal.empty()) {
+        // Fallback: If no vertices, create 8 default points based on typical Cephalothorax dimensions
+        float default_side_x = cephRadiusX * 0.85f; // Approximate X position for sides
+        float z_attach_min = -cephRadiusZ * 0.8f;    // Z extent for attachment, similar to Z filtering
+        float z_attach_max =  cephRadiusZ * 0.8f;
+
+        for (int i = 0; i < points_per_side; ++i) {
+            float t = (points_per_side <= 1) ? 0.5f : static_cast<float>(i) / (points_per_side - 1);
+            float current_z = z_attach_min + t * (z_attach_max - z_attach_min);
+            attachmentPoints.emplace_back(-default_side_x, 0.0f, current_z); // Left point
+            attachmentPoints.emplace_back( default_side_x, 0.0f, current_z); // Right point
+        }
+        return attachmentPoints;
     }
 
-    // Adjust threshold to move points more inward if needed
-    float leftThreshold = minX * 0.85f;
-    float rightThreshold = maxX * 0.85f;
-
-    // Modify this Z filtering to increase range
-    // Previously was 0.8f - make this smaller to allow more points
+    // 1. Find extreme X values from actual vertices
+    float minX_actual = std::numeric_limits<float>::max();
+    float maxX_actual = -std::numeric_limits<float>::max();
     for (const vec3& vertex : _vertexPositionsNormal) {
-        // Use 0.9f instead of 0.8f to include more points toward front/back
-        if (vertex.z < -0.9f * ABDOMEN_RADIUS * ABDOMEN_SCALE_Z ||
-            vertex.z > 0.9f * ABDOMEN_RADIUS * ABDOMEN_SCALE_Z) {
-            continue;
+        if (vertex.x < minX_actual) minX_actual = vertex.x;
+        if (vertex.x > maxX_actual) maxX_actual = vertex.x;
+    }
+
+    // Ensure minX/maxX are valid, otherwise use calculated cephRadiusX
+    if (minX_actual >= maxX_actual - 0.01f) { // Check if range is too small or inverted
+        minX_actual = -cephRadiusX;
+        maxX_actual =  cephRadiusX;
+    }
+
+    // 2. Define X thresholds to identify side vertices
+    // These thresholds define the "sides" of the cephalothorax.
+    // Using a percentage of the total width to find the side regions.
+    float x_width = maxX_actual - minX_actual;
+    float leftThreshold = minX_actual + x_width * 0.20f;  // Points left of this are "left side"
+    float rightThreshold = maxX_actual - x_width * 0.20f; // Points right of this are "right side"
+
+
+    // 3. Filter vertices into left and right side lists, applying Z filter
+    std::vector<vec3> leftSidePoints;
+    std::vector<vec3> rightSidePoints;
+
+    // Z-filter: keep points within a central band of the cephalothorax's Z extent.
+    // This uses a Z range similar to the original code's intent.
+    const float filter_z_abs_limit = 0.9f * (ABDOMEN_RADIUS * ABDOMEN_SCALE_Z);
+
+    for (const vec3& vertex : _vertexPositionsNormal) {
+        if (std::abs(vertex.z) > filter_z_abs_limit) {
+            continue; // Skip points at the very front or back
         }
 
         if (vertex.x < leftThreshold) {
@@ -202,68 +236,84 @@ std::vector<vec3> Cephalothorax::getLegAttachmentPoints() const {
         }
     }
 
-    // Sort by Z and get min/max values (keep this part)
+    // 4. Sort side points by Z coordinate
     auto compareByZ = [](const vec3& a, const vec3& b) { return a.z < b.z; };
     std::sort(leftSidePoints.begin(), leftSidePoints.end(), compareByZ);
     std::sort(rightSidePoints.begin(), rightSidePoints.end(), compareByZ);
 
-    if (leftSidePoints.empty() || rightSidePoints.empty()) {
-        return attachmentPoints;
+    // 5. Helper lambda to find the point in a sorted list closest to a target Z value
+    auto findClosestToZ = [](const std::vector<vec3>& sorted_points, float target_z) -> vec3 {
+        // Assumes sorted_points is not empty, which is handled by the calling logic.
+        if (sorted_points.size() == 1) {
+            return sorted_points[0];
+        }
+
+        auto it = std::lower_bound(sorted_points.begin(), sorted_points.end(), target_z,
+                                   [](const vec3& p, float val){ return p.z < val; });
+
+        if (it == sorted_points.begin()) return *it;
+        if (it == sorted_points.end()) return sorted_points.back();
+
+        // Check if (it) or (it-1) is closer
+        float dist_it = std::abs(it->z - target_z);
+        float dist_prev_it = std::abs((it - 1)->z - target_z);
+        return (dist_it < dist_prev_it) ? *it : *(it - 1);
+    };
+
+    // 6. Generate 4 attachment points for each side
+    std::vector<vec3> final_left_points(points_per_side);
+    std::vector<vec3> final_right_points(points_per_side);
+
+    // Process Left Side
+    if (leftSidePoints.empty()) {
+        float representative_x = minX_actual * 0.85f; // Default X for left side
+         if (representative_x > -0.01f && representative_x < 0.0f) representative_x = -cephRadiusX * 0.85f; // ensure it's reasonably placed if minX_actual was near 0
+        for (int i = 0; i < points_per_side; ++i) {
+            float t = (points_per_side <= 1) ? 0.5f : static_cast<float>(i) / (points_per_side - 1);
+            float z_val = -filter_z_abs_limit + t * (2.0f * filter_z_abs_limit); // Spread along the Z filter range
+            final_left_points[i] = vec3(representative_x, 0.0f, z_val);
+        }
+    } else {
+        float z_min = leftSidePoints.front().z;
+        float z_max = leftSidePoints.back().z;
+        if (z_min >= z_max - 0.01f) { // All points at effectively the same Z
+            for (int i = 0; i < points_per_side; ++i) final_left_points[i] = leftSidePoints.front();
+        } else {
+            for (int i = 0; i < points_per_side; ++i) {
+                float t = (points_per_side <= 1) ? 0.5f : static_cast<float>(i) / (points_per_side - 1);
+                float target_z = z_min + t * (z_max - z_min);
+                final_left_points[i] = findClosestToZ(leftSidePoints, target_z);
+            }
+        }
     }
 
-    float leftMinZ = leftSidePoints.front().z;
-    float leftMaxZ = leftSidePoints.back().z;
-    float rightMinZ = rightSidePoints.front().z;
-    float rightMaxZ = rightSidePoints.back().z;
-
-    // Add a spread factor to extend the range beyond min/max
-    float spreadFactor = 2.0f;  // Increase this to spread legs further apart
-
-    // Calculate the center of the Z range
-    float leftZCenter = (leftMaxZ + leftMinZ) / 2.0f;
-    float rightZCenter = (rightMaxZ + rightMinZ) / 2.0f;
-
-    // Calculate the half range and extend it by the spread factor
-    float leftZRange = (leftMaxZ - leftMinZ) / 2.0f * spreadFactor;
-    float rightZRange = (rightMaxZ - rightMinZ) / 2.0f * spreadFactor;
-
-    // Calculate new min/max values
-    float leftExtendedMinZ = leftZCenter - leftZRange;
-    float leftExtendedMaxZ = leftZCenter + leftZRange;
-    float rightExtendedMinZ = rightZCenter - rightZRange;
-    float rightExtendedMaxZ = rightZCenter + rightZRange;
-
-    // Use extended range for spacing calculations
-    // After calculating the extended Z ranges, add this code:
-    for (int i = 0; i < 4; i++) {
-        float leftSpacing = leftExtendedMinZ + (leftExtendedMaxZ - leftExtendedMinZ) * i / 2.0f;
-        float rightSpacing = rightExtendedMinZ + (rightExtendedMaxZ - rightExtendedMinZ) * i / 2.0f;
-
-        // Find closest points to these spacings as before
-        vec3 leftPoint = leftSidePoints[0];
-        vec3 rightPoint = rightSidePoints[0];
-
-        for (const vec3& point : leftSidePoints) {
-            if (std::abs(point.z - leftSpacing) < std::abs(leftPoint.z - leftSpacing)) {
-                leftPoint = point;
+    // Process Right Side
+    if (rightSidePoints.empty()) {
+        float representative_x = maxX_actual * 0.85f; // Default X for right side
+        if (representative_x < 0.01f && representative_x > 0.0f) representative_x = cephRadiusX * 0.85f; // ensure it's reasonably placed if maxX_actual was near 0
+        for (int i = 0; i < points_per_side; ++i) {
+            float t = (points_per_side <= 1) ? 0.5f : static_cast<float>(i) / (points_per_side - 1);
+            float z_val = -filter_z_abs_limit + t * (2.0f * filter_z_abs_limit); // Spread along the Z filter range
+            final_right_points[i] = vec3(representative_x, 0.0f, z_val);
+        }
+    } else {
+        float z_min = rightSidePoints.front().z;
+        float z_max = rightSidePoints.back().z;
+         if (z_min >= z_max - 0.01f) { // All points at effectively the same Z
+            for (int i = 0; i < points_per_side; ++i) final_right_points[i] = rightSidePoints.front();
+        } else {
+            for (int i = 0; i < points_per_side; ++i) {
+                float t = (points_per_side <= 1) ? 0.5f : static_cast<float>(i) / (points_per_side - 1);
+                float target_z = z_min + t * (z_max - z_min);
+                final_right_points[i] = findClosestToZ(rightSidePoints, target_z);
             }
         }
+    }
 
-        for (const vec3& point : rightSidePoints) {
-            if (std::abs(point.z - rightSpacing) < std::abs(rightPoint.z - rightSpacing)) {
-                rightPoint = point;
-            }
-        }
-
-        // Average the Y values between corresponding points
-        float avgY = (leftPoint.y + rightPoint.y) / 2.0f;
-
-        // Create adjusted points with the same Y coordinate
-        vec3 adjustedLeftPoint(leftPoint.x, 0, leftPoint.z);
-        vec3 adjustedRightPoint(rightPoint.x, 0, rightPoint.z);
-
-        attachmentPoints.push_back(adjustedLeftPoint);
-        attachmentPoints.push_back(adjustedRightPoint);
+    // 7. Combine left and right points into the final list, setting Y=0
+    for (int i = 0; i < points_per_side; ++i) {
+        attachmentPoints.emplace_back(final_left_points[i].x, 0.0f, final_left_points[i].z);
+        attachmentPoints.emplace_back(final_right_points[i].x, 0.0f, final_right_points[i].z);
     }
 
     return attachmentPoints;

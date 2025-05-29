@@ -1,50 +1,76 @@
-#pragma once
+// Description: Header file for the Spider class, defining its structure and functionalities.
+#ifndef SPIDER_H
+#define SPIDER_H
+
+#include "Cephalothorax.h"
+#include "Abdomen.h"
+#include "Head.h"
+#include "Eye.h"
+#include "Leg.h"
 #include <vector>
-#include <GL/glew.h>
-#include "../external/Angel/inlcude/Angel/Angel.h"
-#include "spider/Abdomen.h"
-#include "spider/Cephalothorax.h"
-#include "spider/Head.h"
-#include "spider/Eye.h"
-#include "spider/Leg.h"          // ⬅️ NEW
-#include "global/GlobalConfig.h" // ⬅️ NEW
+#include <string>
 
 namespace spider {
 
     class Spider {
     public:
-        explicit Spider(GLuint shaderProgram);
-
-        // ⬇️ remove the final “const” so we can mutate leg poses inside draw
-        void draw(GLuint modelViewLoc,
-                  GLuint projectionLoc,
-                  const mat4& viewMatrix,
-                  const mat4& projMatrix);
-
-        void        setPosition(const vec3& pos);
+        Spider(GLuint shaderProgram);
+        void setPosition(const vec3& pos);
         const vec3& getPosition() const;
-        float legRotation = -45.0f;
-        float legRotation2 = -45.0f;
 
+        void startWalkingForward();
+        void stopWalkingForward();
+        void startWalkingBackward();
+        void stopWalkingBackward();
+        void startTurningLeft();
+        void stopTurningLeft();
+        void startTurningRight();
+        void stopTurningRight();
+
+        void update(float deltaTime);
+        void runIKForLeg(int legIndex, const vec3& worldTargetPosition); // New method for on-demand IK
+
+        void draw(GLuint modelViewLoc, GLuint projectionLoc, const mat4& viewMatrix, const mat4& projMatrix);
+
+        const std::vector<vec3>& getInitialLegTipGroundContacts() const;
 
 
     private:
-
-        GLuint _shaderProgram;
-
-        vec3 position = vec3(BODY_START_X, BODY_START_Y, BODY_START_Z);
+        void calculateAndStoreInitialLegTipGroundContacts();
 
         Cephalothorax cephalothorax;
-        Abdomen       abdomen;
-        Head          head;
-
+        Abdomen abdomen;
+        Head head;
         Eye leftEye, rightEye, leftEye2, rightEye2;
-        spider::Leg leg;  // Add this member variable
-        spider::Leg leg2;  // Add this new leg
-        spider::Leg leg3;  // Add this new leg
-        spider::Leg leg4;  // Add this new leg
+        Leg leg, leg2, leg3, leg4, leg5, leg6, leg7, leg8;
 
+        GLuint _shaderProgram;
+        vec3 position;
+        vec3 current_forward_vector_;
+
+        bool is_walking_forward_;
+        bool is_walking_backward_;
+        bool is_turning_left_;
+        bool is_turning_right_;
+
+        float walk_speed_;
+        float turn_speed_;
+        float current_yaw_angle_;
+
+        float leg_animation_cycle_;
+        float leg_animation_speed_;
+        float max_leg_swing_angle_;
+
+        float base_abdomen_tilt_angle_;
+        float abdomen_shake_cycle_;
+        float abdomen_shake_speed_;
+        float max_abdomen_shake_amplitude_;
+
+        std::vector<vec3> initial_leg_tip_ground_contacts_;
+        // current_leg_tip_targets_ removed
     };
 
-    void testLegSegmentDrawing(GLuint luint);
 } // namespace spider
+
+#endif // SPIDER_H
+// --- End of Spider.h ---
