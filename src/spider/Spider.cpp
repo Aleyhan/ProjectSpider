@@ -178,7 +178,7 @@ void Spider::jump(float deltaTime, float jumpDuration) {
     if (isJumping) {
         if (jumpTime <= jumpDuration) {
             // Calculate height using a sine wave for smooth animation
-            float jumpHeight = 1.0f * sin((jumpTime / jumpDuration) * M_PI); // Adjust 0.5f for max height
+            float jumpHeight = 1.5f * sin((jumpTime / jumpDuration) * M_PI); // Adjust 0.5f for max height
             position.y = jumpHeight;
 
             // Update leg positions with IK
