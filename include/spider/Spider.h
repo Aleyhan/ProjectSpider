@@ -2,6 +2,8 @@
 #ifndef SPIDER_H
 #define SPIDER_H
 
+#include <MacTypes.h>
+
 #include "Cephalothorax.h"
 #include "Abdomen.h"
 #include "Head.h"
@@ -28,21 +30,36 @@ namespace spider {
         void stopTurningRight();
 
         void update(float deltaTime);
-        void runIKForLeg(int legIndex, const vec3& worldTargetPosition); // New method for on-demand IK
+
+        void applyIKToAllLegs(std::vector<Leg*>& legs,
+                                      const std::vector<Angel::vec3>& targets,
+                                      float param1, int param2, int param3,
+                                      float param4,
+                                      const std::vector<std::vector<float>>& matrix1,
+                                      const std::vector<std::vector<float>>& matrix2);
 
         void draw(GLuint modelViewLoc, GLuint projectionLoc, const mat4& viewMatrix, const mat4& projMatrix);
 
         const std::vector<vec3>& getInitialLegTipGroundContacts() const;
+        Leg leg, leg2, leg3, leg4, leg5, leg6, leg7, leg8;
+        Cephalothorax cephalothorax;
 
+        bool jumpTriggered; // Global flag to trigger jump
+
+        std::vector<std::pair<float, float>> getXYLengthsForAllAttachments(const std::vector<vec3>& attachPoints);
+
+        void moveBodyUp();
+        void moveBodyDown();
+
+        void jump(float deltaTime, float jumpDuration);
 
     private:
         void calculateAndStoreInitialLegTipGroundContacts();
 
-        Cephalothorax cephalothorax;
+
         Abdomen abdomen;
         Head head;
         Eye leftEye, rightEye, leftEye2, rightEye2;
-        Leg leg, leg2, leg3, leg4, leg5, leg6, leg7, leg8;
 
         GLuint _shaderProgram;
         vec3 position;
@@ -66,8 +83,6 @@ namespace spider {
         float abdomen_shake_speed_;
         float max_abdomen_shake_amplitude_;
 
-        std::vector<vec3> initial_leg_tip_ground_contacts_;
-        // current_leg_tip_targets_ removed
     };
 
 } // namespace spider

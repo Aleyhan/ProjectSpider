@@ -1,128 +1,84 @@
 // Leg.cpp
- #include "spider/Leg.h"
- #include <algorithm>
+#include "spider/Leg.h"
 #include <cmath>     // For atan2, sqrt, acos, M_PI
+#include <vector>
 
+namespace spider {
 
+    Leg::Leg(GLuint shaderProgram,
+             int numSegments,
+             float segmentLength,
+             float segmentThickness)
+        : thickness(segmentThickness)
+    {
+        // Initialize shared geometry if not already done
+        LegSegment::initSharedGeometry(shaderProgram);
 
- namespace spider {
+        segments.reserve(numSegments);
+        jointAngles.assign(numSegments, 0.0f);
+        segmentEnds.resize(numSegments);
 
-     Leg::Leg(GLuint shaderProgram,
-              int numSegments,
-              float segmentLength,
-              float segmentThickness)
-         : thickness(segmentThickness)
-     {
-         // Initialize shared geometry if not already done
-         LegSegment::initSharedGeometry(shaderProgram);
+        for (int i = 0; i < numSegments; ++i) {
+            // Create segment with the specified length and thickness
+            segments.emplace_back(segmentLength, segmentThickness);
+        }
+    }
 
-         segments.reserve(numSegments);
-         jointAngles.assign(numSegments, 0.0f);
-         segmentEnds.resize(numSegments);
+    void Leg::setJointAngles(const std::vector<float>& angles) {
+        int n = std::min((int)angles.size(), (int)jointAngles.size());
+        for (int i = 0; i < n; ++i) {
+            jointAngles[i] = angles[i];
+        }
+    }
 
-         for (int i = 0; i < numSegments; ++i) {
-             // Create segment with the specified length and thickness
-             segments.emplace_back(segmentLength, segmentThickness);
-         }
-     }
+    const std::vector<float>& Leg::getJointAngles() const {
+        return jointAngles;
+    }
 
-     void Leg::setJointAngles(const std::vector<float>& angles) {
-         int n = std::min((int)angles.size(), (int)jointAngles.size());
-         for (int i = 0; i < n; ++i) {
-             jointAngles[i] = angles[i];
-         }
-     }
+    const std::vector<vec3>& Leg::getSegmentEnds() const {
+        return segmentEnds;
+    }
 
-     const std::vector<float>& Leg::getJointAngles() const {
-         return jointAngles;
-     }
+    void Leg::forwardKinematics(const std::vector<float>& theta_deg, float L, std::vector<float>& x, std::vector<float>& y) {
+        x.assign(theta_deg.size() + 1, 0.0f);
+        y.assign(theta_deg.size() + 1, 0.0f);
+        float a = 0.0f;
+        for (size_t i = 0; i < theta_deg.size(); ++i) {
+            a += theta_deg[i];
+            float rad = a * static_cast<float>(M_PI) / 180.0f;
+            x[i + 1] = x[i] + L * std::cos(rad);
+            y[i + 1] = y[i] + L * std::sin(rad);
+        }
+    }
 
-     std::vector<vec3> Leg::calculateWorldSegmentEnds(const mat4& legModelMatrixAtAttachment) const {
-         std::vector<vec3> world_ends;
-         world_ends.reserve(segments.size());
-         mat4 current_transform = legModelMatrixAtAttachment;
-
-         for (size_t i = 0; i < segments.size(); ++i) {
-             current_transform = current_transform * RotateZ(jointAngles[i]);
-             // No drawing, just calculate where the segment would be
-             mat4 segment_end_transform = current_transform * Translate(segments[i].getLength(), 0.0f, 0.0f);
-
-             vec4 world_end_v4 = segment_end_transform * vec4(0.0f, 0.0f, 0.0f, 1.0f);
-             world_ends.emplace_back(world_end_v4.x, world_end_v4.y, world_end_v4.z);
-
-             current_transform = segment_end_transform; // Continue from the end of this segment
-         }
-         return world_ends;
-     }
-
-     std::vector<vec3> Leg::getAllJointAndTipWorldPositions(const mat4& legRootWorldTransform) const {
-         std::vector<vec3> positions;
-         positions.reserve(segments.size() + 1);
-
-         mat4 current_transform = legRootWorldTransform;
-         positions.push_back(vec3(current_transform[0][3], current_transform[1][3], current_transform[2][3]));
-
-         for (size_t i = 0; i < segments.size(); ++i) {
-             current_transform = current_transform * RotateZ(jointAngles[i]);
-             current_transform = current_transform * Translate(segments[i].getLength(), 0.0f, 0.0f);
-             positions.push_back(vec3(current_transform[0][3], current_transform[1][3], current_transform[2][3]));
-         }
-         return positions;
-     }
-
-     mat4 Leg::getJointRotationFrameWorldTransform(int joint_idx, const mat4& legRootWorldTransform) const {
-         mat4 current_transform = legRootWorldTransform;
-         for (int i = 0; i < joint_idx; ++i) {
-             current_transform = current_transform * RotateZ(jointAngles[i]);
-             current_transform = current_transform * Translate(segments[i].getLength(), 0.0f, 0.0f);
-         }
-         return current_transform;
-     }
-
-         void Leg::solveIKForTarget(const vec3& worldTargetPosition, const mat4& legRootWorldTransform, int iterations, float tolerance) {
-        if (segments.empty()) return;
-
-        // CCD Algorithm
-        for (int iter = 0; iter < iterations; ++iter) {
-            std::vector<vec3> all_world_points = getAllJointAndTipWorldPositions(legRootWorldTransform);
-            vec3 endEffectorWorldPos = all_world_points.back();
-
-            if (length(endEffectorWorldPos - worldTargetPosition) < tolerance) {
-                break;
-            }
-
-            for (int j = segments.size() - 1; j >= 0; --j) {
-                all_world_points = getAllJointAndTipWorldPositions(legRootWorldTransform);
-                vec3 currentJointWorldPos = all_world_points[j];
-                endEffectorWorldPos = all_world_points.back();
-
-                mat4 jointFrameWorldTransform = getJointRotationFrameWorldTransform(j, legRootWorldTransform);
-                mat4 worldToJointFrameTransform = Inverse(jointFrameWorldTransform);
-
-                vec4 endEffectorInJointFrame_v4 = worldToJointFrameTransform * vec4(endEffectorWorldPos, 1.0f);
-                vec4 targetInJointFrame_v4 = worldToJointFrameTransform * vec4(worldTargetPosition, 1.0f);
-
-                vec2 vecToEffector = normalize(vec2(endEffectorInJointFrame_v4.x, endEffectorInJointFrame_v4.y));
-                vec2 vecToTarget   = normalize(vec2(targetInJointFrame_v4.x, targetInJointFrame_v4.y));
-
-                float cosAngle = dot(vecToEffector, vecToTarget);
-                cosAngle = std::max(-1.0f, std::min(1.0f, cosAngle)); // Clamp due to potential precision issues
-                float angleRad = acos(cosAngle);
-
-                // Determine sign of angle using 2D cross product (z-component of 3D cross)
-                float cross_z = vecToEffector.x * vecToTarget.y - vecToEffector.y * vecToTarget.x;
-                if (cross_z < 0.0f) { // If target is clockwise from effector
-                    angleRad = -angleRad;
-                }
-
-                float angleDeg = Angel::Degrees(angleRad);
-
-                jointAngles[j] += angleDeg;
-
-                // Clamp joint angle
-                jointAngles[j] = std::max(-90.0f, std::min(90.0f, jointAngles[j]));
+    // CCD Inverse Kinematics for planar leg
+    std::vector<float> Leg::inverseKinematicsCCD(
+        float x_target, float y_target, float L, int n, int maxIter, float tol,
+        const std::vector<float>& theta_min, const std::vector<float>& theta_max
+    ) {
+        std::vector<float> theta_deg(n, 0.0f);
+        std::vector<float> x, y;
+        for (int iter = 0; iter < maxIter; ++iter) {
+            forwardKinematics(theta_deg, L, x, y);
+            float dx = x.back() - x_target;
+            float dy = y.back() - y_target;
+            float d = std::sqrt(dx*dx + dy*dy);
+            if (d < tol) break;
+            for (int i = n-1; i >= 0; --i) {
+                forwardKinematics(theta_deg, L, x, y);
+                float jx = x[i], jy = y[i];
+                float eex = x.back(), eey = y.back();
+                float v1x = x_target - jx, v1y = y_target - jy;
+                float v2x = eex - jx,    v2y = eey - jy;
+                float a1 = std::atan2(v1y, v1x) * 180.0f / static_cast<float>(M_PI);
+                float a2 = std::atan2(v2y, v2x) * 180.0f / static_cast<float>(M_PI);
+                float da = a1 - a2;
+                theta_deg[i] += da;
+                // Clamp to limits
+                theta_deg[i] = std::min(std::max(theta_deg[i], theta_min[i]), theta_max[i]);
             }
         }
+        return theta_deg;
     }
 
      void Leg::draw(GLuint modelViewLoc,
@@ -150,10 +106,6 @@
              vec4 worldEnd = current * vec4(0.0f, 0.0f, 0.0f, 1.0f);
              segmentEnds.emplace_back(worldEnd.x, worldEnd.y, worldEnd.z);
          }
-     }
-
-     const std::vector<vec3>& Leg::getSegmentEnds() const {
-         return segmentEnds;
      }
 
  } // namespace spider

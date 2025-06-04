@@ -6,6 +6,7 @@
 #include "global/GlobalConfig.h"
 #include "utils/Axes.h"
 #include "spider/Spider.h"
+#include "spider/Leg.h"
 #include "spider/Abdomen.h"
 #include <vector>
 #include <iomanip>
@@ -81,16 +82,6 @@ int main() {
 
     spider::Spider spider(abdomenProgram);
 
-    // Print initial leg tip ground contacts
-    std::cout << "Initial Leg Tip Ground Contacts (World Y=0):" << std::endl;
-    const std::vector<vec3>& contacts = spider.getInitialLegTipGroundContacts();
-    for (size_t i = 0; i < contacts.size(); ++i) {
-        std::cout << "Leg " << i << ": ("
-                  << std::fixed << std::setprecision(3) << contacts[i].x << ", "
-                  << std::fixed << std::setprecision(3) << contacts[i].y << ", "
-                  << std::fixed << std::setprecision(3) << contacts[i].z << ")" << std::endl;
-    }
-    std::cout << "---------------------------------------------" << std::endl;
 
     // 2) setting the axes shader
     GLuint axesProgram = InitShader("../shaders/axes_vertex.glsl", "../shaders/axes_fragment.glsl");
@@ -141,28 +132,23 @@ int main() {
         } else {
             spider.stopTurningRight();
         }
+
+        // Spider movement
+        if (glfwGetKey(window, GLFW_KEY_Q) == GLFW_PRESS) {
+            spider.moveBodyUp();
+        } else if (glfwGetKey(window, GLFW_KEY_Z) == GLFW_PRESS) {
+            spider.moveBodyDown();
+        }
+
+       if (glfwGetKey(window, GLFW_KEY_J) == GLFW_PRESS ) {
+            spider.jumpTriggered = true; // Define and initialize the global variable
+       }
+
+
         // Add other spider controls here if needed (e.g., turning)
 
         spider.update(deltaTime);
 
-        // --- TEST BLOCK for IK on Leg 7 ---
-        // --- TEST BLOCK for IK on Leg 7 ---
-        static bool leg7_ik_applied_once = false; // Renamed for clarity
-        if (spider.getPosition().z > 2.0f && !leg7_ik_applied_once ) {
-            const std::vector<vec3>& initial_contacts = spider.getInitialLegTipGroundContacts();
-            if (initial_contacts.size() > 7) {
-                vec3 leg7_initial_contact = initial_contacts[7];
-                vec3 new_target_for_leg7 = vec3(leg7_initial_contact.x, -1.0f, leg7_initial_contact.z);
-
-                std::cout << "Spider Z > 2.0. Applying IK for Leg 7 to target Y=1.0 ONCE." << std::endl;
-                // ... (print target) ...
-
-                spider.runIKForLeg(7, new_target_for_leg7);
-                leg7_ik_applied_once = true; // Ensures IK runs only once for this condition
-            }
-        }
-        // --- END OF TEST BLOCK ---
-        // --- END OF TEST BLOCK ---
 
         mat4 Projection = Perspective( 45.0f, 4.0f/3.0f, 0.1f, 100.0f );
         mat4 View       = camera.getViewMatrix();

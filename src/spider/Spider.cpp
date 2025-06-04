@@ -46,13 +46,13 @@ namespace spider {
         leg7.setJointAngles(angles);
         leg8.setJointAngles(angles);
 
-        calculateAndStoreInitialLegTipGroundContacts();
     }
 
 
-    void Spider::setPosition(const vec3& pos) {
-        position = pos;
-    }
+
+void Spider::setPosition(const vec3& pos) {
+    position = pos;
+}
 
 const vec3& Spider::getPosition() const {
     return position;
@@ -94,6 +94,114 @@ void Spider::stopTurningRight() {
     is_turning_right_ = false;
 }
 
+std::vector<std::pair<float, float>> Spider::getXYLengthsForAllAttachments(const std::vector<vec3>& attachPoints) {
+    std::vector<std::pair<float, float>> results;
+    results.reserve(attachPoints.size());
+    float dx = 3.0f; // Adjust as needed
+
+    for (const auto& pt : attachPoints) {
+        float dy = pt.y - position.y-1.0f; // Include the spider's vertical position
+        results.emplace_back(dx, dy);
+    }
+    return results;
+}
+
+void Spider::applyIKToAllLegs(
+    std::vector<spider::Leg*>& legs,
+    const std::vector<vec3>& attachPoints,
+    float segmentLength,
+    int numSegments,
+    int maxIter,
+    float tol,
+    const std::vector<std::vector<float>>& theta_min_all,
+    const std::vector<std::vector<float>>& theta_max_all
+) {
+
+    auto xyTargets = getXYLengthsForAllAttachments(attachPoints);
+    for (size_t i = 0; i < legs.size(); ++i) {
+        // Adjust the y-coordinate dynamically for each attachPoint
+        float x_target = xyTargets[i].first;
+        float y_target = xyTargets[i].second;
+        const auto& theta_min = theta_min_all[i];
+        const auto& theta_max = theta_max_all[i];
+        std::vector<float> angles = legs[i]->inverseKinematicsCCD(
+            x_target, y_target, segmentLength, numSegments, maxIter, tol, theta_min, theta_max
+        );
+
+        legs[i]->setJointAngles(angles);
+    }
+}
+
+void Spider::moveBodyUp() {
+    position.y += 0.05f; // Adjust this value as needed
+
+    // Update leg positions with IK
+    std::vector<spider::Leg*> legs = {&leg, &leg2, &leg3, &leg4, &leg5, &leg6, &leg7, &leg8};
+    std::vector<vec3> attachPoints = cephalothorax.getLegAttachmentPoints();
+    float segmentLength = 0.6f;
+    int numSegments = 7;
+    int maxIter = 10;
+    float tol = 0.01f;
+
+    std::vector<std::vector<float>> theta_min_all(legs.size(), {30.0f, -15.0f, -40.0f, -30.0f, -30.0f, -30.0f, -30.0f});
+    std::vector<std::vector<float>> theta_max_all(legs.size(), {90.0f, 15.0f, 40.0f, 40.0f, 0.0f, 0.0f, 0.0f});
+
+    applyIKToAllLegs(legs, attachPoints, segmentLength, numSegments, maxIter, tol, theta_min_all, theta_max_all);
+}
+
+void Spider::moveBodyDown() {
+    position.y -= 0.05f; // Adjust this value as needed
+
+    // Update leg positions with IK
+    std::vector<spider::Leg*> legs = {&leg, &leg2, &leg3, &leg4, &leg5, &leg6, &leg7, &leg8};
+    std::vector<vec3> attachPoints = cephalothorax.getLegAttachmentPoints();
+    float segmentLength = 0.6f;
+    int numSegments = 7;
+    int maxIter = 10;
+    float tol = 0.01f;
+
+    std::vector<std::vector<float>> theta_min_all(legs.size(), {30.0f, -15.0f, -40.0f, -30.0f, -30.0f, -30.0f, -30.0f});
+    std::vector<std::vector<float>> theta_max_all(legs.size(), {90.0f, 15.0f, 40.0f, 40.0f, 0.0f, 0.0f, 0.0f});
+
+    applyIKToAllLegs(legs, attachPoints, segmentLength, numSegments, maxIter, tol, theta_min_all, theta_max_all);
+}
+
+void Spider::jump(float deltaTime, float jumpDuration) {
+    static float jumpTime = 0.0f;
+    static bool isJumping = false;
+
+    if (!isJumping) {
+        isJumping = true; // Start the jump
+        jumpTime = 0.0f;  // Reset jump time
+    }
+
+    if (isJumping) {
+        if (jumpTime <= jumpDuration) {
+            // Calculate height using a sine wave for smooth animation
+            float jumpHeight = 1.0f * sin((jumpTime / jumpDuration) * M_PI); // Adjust 0.5f for max height
+            position.y = jumpHeight;
+
+            // Update leg positions with IK
+            std::vector<spider::Leg*> legs = {&leg, &leg2, &leg3, &leg4, &leg5, &leg6, &leg7, &leg8};
+            std::vector<vec3> attachPoints = cephalothorax.getLegAttachmentPoints();
+            float segmentLength = 0.6f;
+            int numSegments = 7;
+            int maxIter = 10;
+            float tol = 0.01f;
+
+            std::vector<std::vector<float>> theta_min_all(legs.size(), {30.0f, -15.0f, -40.0f, -30.0f, -30.0f, -30.0f, -30.0f});
+            std::vector<std::vector<float>> theta_max_all(legs.size(), {90.0f, 15.0f, 40.0f, 40.0f, 0.0f, 0.0f, 0.0f});
+
+            applyIKToAllLegs(legs, attachPoints, segmentLength, numSegments, maxIter, tol, theta_min_all, theta_max_all);
+
+            jumpTime += deltaTime;
+        } else {
+            // Reset after jump
+            position.y = 0.0f;
+            isJumping = false;
+        }
+    }
+}
 
 void Spider::update(float deltaTime) {
     if (is_turning_left_) {
@@ -116,6 +224,20 @@ void Spider::update(float deltaTime) {
         position -= current_forward_vector_ * walk_speed_ * deltaTime;
     }
 
+    // Prepare data for applyIKToAllLegs
+    std::vector<spider::Leg*> legs = {&leg, &leg2, &leg3, &leg4, &leg5, &leg6, &leg7, &leg8};
+    std::vector<vec3> attachPoints = cephalothorax.getLegAttachmentPoints();
+    float segmentLength = 0.6f;
+    int numSegments = 7;
+    int maxIter = 10;
+    float tol = 0.01f;
+
+    std::vector<std::vector<float>> theta_min_all(legs.size(), {30.0f, -15.0f, -40.0f, -30.0f, -30.0f, -30.0f, -30.0f});
+    std::vector<std::vector<float>> theta_max_all(legs.size(), {90.0f, 15.0f, 40.0f, 40.0f, 0.0f, 0.0f, 0.0f});
+
+    // Call applyIKToAllLegs
+    applyIKToAllLegs(legs, attachPoints, segmentLength, numSegments, maxIter, tol, theta_min_all, theta_max_all);
+
     bool is_active = is_walking_forward_ || is_walking_backward_ || is_turning_left_ || is_turning_right_;
     if (is_active) {
         leg_animation_cycle_ += leg_animation_speed_ * deltaTime;
@@ -128,75 +250,15 @@ void Spider::update(float deltaTime) {
             abdomen_shake_cycle_ -= 1.0f;
         }
     }
-}
 
-void Spider::runIKForLeg(int legIndex, const vec3& worldTargetPosition) {
-    if (legIndex < 0 || legIndex >= 8) return;
-
-    mat4 currentSpiderWorldTransform = Angel::Translate(position) * Angel::RotateY(current_yaw_angle_);
-    std::vector<vec3> legAttachPoints = cephalothorax.getLegAttachmentPoints();
-
-    if (legAttachPoints.size() <= static_cast<size_t>(legIndex)) return;
-
-    Leg* leg_objects[8] = {&leg, &leg2, &leg3, &leg4, &leg5, &leg6, &leg7, &leg8};
-
-    bool scale_x_negatively[8] = { true, false, true, false, true, false, true, false };
-
-    mat4 leg_attachment_transform = Angel::Translate(legAttachPoints[legIndex]);
-    mat4 leg_scale_transform = mat4();
-    if (scale_x_negatively[legIndex]) {
-        leg_scale_transform = Angel::Scale(-1.0f, 1.0f, 1.0f);
-    }
-
-    mat4 leg_root_world_transform_for_ik = currentSpiderWorldTransform * leg_attachment_transform * leg_scale_transform;
-
-    leg_objects[legIndex]->solveIKForTarget(worldTargetPosition, leg_root_world_transform_for_ik);
-}
-
-
-const std::vector<vec3>& Spider::getInitialLegTipGroundContacts() const {
-    return initial_leg_tip_ground_contacts_;
-}
-
-void Spider::calculateAndStoreInitialLegTipGroundContacts() {
-    initial_leg_tip_ground_contacts_.clear();
-    initial_leg_tip_ground_contacts_.reserve(8);
-
-    mat4 initial_R_yaw = Angel::RotateY(current_yaw_angle_);
-    mat4 initial_T_translation = Angel::Translate(position);
-    mat4 initial_spiderWorldTransform = initial_T_translation * initial_R_yaw;
-
-    std::vector<vec3> legAttachPoints = cephalothorax.getLegAttachmentPoints();
-    if (legAttachPoints.size() < 8) {
-        return;
-    }
-
-    Leg* leg_objects[8] = {&leg, &leg2, &leg3, &leg4, &leg5, &leg6, &leg7, &leg8};
-
-    float initial_leg_anim_rotations[8] = {0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f};
-    bool scale_x_negatively[8] = { true, false, true, false, true, false, true, false };
-
-    for (int i = 0; i < 8; ++i) {
-        mat4 leg_attachment_transform = Angel::Translate(legAttachPoints[i]);
-        mat4 leg_rotation_transform = Angel::RotateY(initial_leg_anim_rotations[i]);
-        mat4 leg_scale_transform = mat4();
-        if (scale_x_negatively[i]) {
-            leg_scale_transform = Angel::Scale(-1.0f, 1.0f, 1.0f);
+        if (jumpTriggered) {
+            jump(deltaTime, 1.0f); // 1.0f is the jump duration
+            if (getPosition().y == 0.0f) { // Check if the jump is complete
+                jumpTriggered = false; // Reset the trigger
+            }
         }
-        mat4 legRootWorldTransform = initial_spiderWorldTransform * leg_attachment_transform * leg_rotation_transform * leg_scale_transform;
-        std::vector<vec3> segment_world_ends = leg_objects[i]->getAllJointAndTipWorldPositions(legRootWorldTransform);
 
-        if (!segment_world_ends.empty()) {
-            vec3 leg_tip_world = segment_world_ends.back();
-            vec3 ground_contact = vec3(leg_tip_world.x, 0.0f, leg_tip_world.z);
-            initial_leg_tip_ground_contacts_.push_back(ground_contact);
-        } else {
-            vec4 attach_point_world_v4 = initial_spiderWorldTransform * vec4(legAttachPoints[i], 1.0f);
-            initial_leg_tip_ground_contacts_.emplace_back(attach_point_world_v4.x, 0.0f, attach_point_world_v4.z);
-        }
-    }
 }
-
 
         void Spider::draw(
             GLuint modelViewLoc,
