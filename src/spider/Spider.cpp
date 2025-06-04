@@ -19,7 +19,7 @@ namespace spider {
       leg6(shaderProgram, 7, 0.6f, 1.3f),
       leg7(shaderProgram, 7, 0.6f, 1.5f),
       leg8(shaderProgram, 7, 0.6f, 1.5f),
-      position(0.0f, 0.0f, 0.0f),
+      position(BODY_START_X, BODY_START_Y, BODY_START_Z),
       current_forward_vector_(0.0f, 0.0f, 1.0f),
       is_walking_forward_(false),
       is_walking_backward_(false),
@@ -36,7 +36,7 @@ namespace spider {
       abdomen_shake_speed_(3.0f),
       max_abdomen_shake_amplitude_(10.0f) {
 
-        std::vector<float> angles = {20.0f, 15.0f, -10.0f, -35.0f, -20.0f, -30.0f, -10.0f};
+        std::vector<float> angles = {20.0f, 5.0f, -10.0f, -35.0f, -20.0f, -30.0f, -10.0f};
         leg.setJointAngles(angles);
         leg2.setJointAngles(angles);
         leg3.setJointAngles(angles);
@@ -100,7 +100,7 @@ std::vector<std::pair<float, float>> Spider::getXYLengthsForAllAttachments(const
     float dx = 3.0f; // Adjust as needed
 
     for (const auto& pt : attachPoints) {
-        float dy = pt.y - position.y-1.0f; // Include the spider's vertical position
+        float dy = pt.y - position.y; // Include the spider's vertical position
         results.emplace_back(dx, dy);
     }
     return results;
@@ -178,8 +178,8 @@ void Spider::jump(float deltaTime, float jumpDuration) {
     if (isJumping) {
         if (jumpTime <= jumpDuration) {
             // Calculate height using a sine wave for smooth animation
-            float jumpHeight = 1.5f * sin((jumpTime / jumpDuration) * M_PI); // Adjust 0.5f for max height
-            position.y = jumpHeight;
+            float jumpHeight = 2.0f * sin((jumpTime / jumpDuration) * M_PI); // Adjust 0.5f for max height
+            position.y = BODY_START_Y + jumpHeight;
 
             // Update leg positions with IK
             std::vector<spider::Leg*> legs = {&leg, &leg2, &leg3, &leg4, &leg5, &leg6, &leg7, &leg8};
@@ -197,7 +197,7 @@ void Spider::jump(float deltaTime, float jumpDuration) {
             jumpTime += deltaTime;
         } else {
             // Reset after jump
-            position.y = 0.0f;
+            position.y = BODY_START_Y; // Reset to starting height
             isJumping = false;
         }
     }
@@ -253,7 +253,7 @@ void Spider::update(float deltaTime) {
 
         if (jumpTriggered) {
             jump(deltaTime, 1.0f); // 1.0f is the jump duration
-            if (getPosition().y == 0.0f) { // Check if the jump is complete
+            if (getPosition().y == BODY_START_Y) { // Check if the jump is complete
                 jumpTriggered = false; // Reset the trigger
             }
         }

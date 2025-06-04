@@ -167,12 +167,13 @@ int main() {
         if (glfwGetKey(window, GLFW_KEY_F) == GLFW_PRESS) camera.processKeyboard(GLFW_KEY_A);
         if (glfwGetKey(window, GLFW_KEY_H) == GLFW_PRESS) camera.processKeyboard(GLFW_KEY_D);
         if (glfwGetKey(window, GLFW_KEY_C) == GLFW_PRESS) camera.processKeyboard(GLFW_KEY_C);
-        // if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS) camera.processKeyboard(GLFW_KEY_SPACE);
+        if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS) camera.processKeyboard(GLFW_KEY_SPACE);
 
-        // Trigger spider jump on spacebar
+        /*
         if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS) {
             spider.jump(deltaTime, 1.0f); // 1.0f is the jump duration
         }
+        */
 
         if (glfwGetKey(window, GLFW_KEY_LEFT) == GLFW_PRESS)  camera.processKeyboard(GLFW_KEY_LEFT);
         if (glfwGetKey(window, GLFW_KEY_RIGHT) == GLFW_PRESS) camera.processKeyboard(GLFW_KEY_RIGHT);
@@ -217,12 +218,6 @@ int main() {
         // Add other spider controls here if needed (e.g., turning)
 
         spider.update(deltaTime);
-        // Prevent spider from going below ground
-        vec3 pos = spider.getPosition();
-        if (pos.y < 0.0f) {
-            pos.y = 0.0f;
-            spider.setPosition(pos);  // Bu fonksiyon mevcutsa
-        }
 
 
         mat4 Projection = Perspective( 45.0f, 4.0f/3.0f, 0.1f, 100.0f );

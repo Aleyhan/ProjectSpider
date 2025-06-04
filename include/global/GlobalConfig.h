@@ -2,7 +2,7 @@
 
 // Spider body configuration
 const float BODY_START_X = 0.0f;
-const float BODY_START_Y = 0.0f;
+const float BODY_START_Y = 1.0f;
 const float BODY_START_Z = 0.0f;
 
 const float ABDOMEN_RADIUS = 0.8f;
