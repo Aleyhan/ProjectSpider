@@ -14,6 +14,7 @@ include_directories(
         ${CMAKE_SOURCE_DIR}/include
         ${CMAKE_SOURCE_DIR}/external/glew/include
         ${CMAKE_SOURCE_DIR}/external/Angel/include
+        ${CMAKE_SOURCE_DIR}/include/obstacle
 )
 
 # Build platform libraries
@@ -52,6 +53,7 @@ add_executable(ProjectSpider
         ${CMAKE_SOURCE_DIR}/src/spider/Eye.cpp
         ${CMAKE_SOURCE_DIR}/src/spider/LegSegment.cpp
         ${CMAKE_SOURCE_DIR}/src/spider/Leg.cpp
+        ${CMAKE_SOURCE_DIR}/include/obstacle/Obstacle.cpp
 )
 
 # link the libraries to the executable
@@ -67,9 +69,13 @@ target_link_libraries(ProjectSpider PRIVATE
         "-framework IOKit"
         "-framework CoreFoundation"
         "-framework OpenGL"
+        "-framework GLUT"
 )
 
-# Copy all shaders into the build directory before each build
+# Create shaders directory in build output
+file(MAKE_DIRECTORY "${CMAKE_BINARY_DIR}/shaders")
+
+# Copy all shaders into build/shaders before each build
 file(GLOB SHADER_FILES "${CMAKE_SOURCE_DIR}/shaders/*")
 foreach(SHADER ${SHADER_FILES})
     get_filename_component(NAME ${SHADER} NAME)
@@ -77,8 +83,8 @@ foreach(SHADER ${SHADER_FILES})
             TARGET ProjectSpider PRE_BUILD
             COMMAND ${CMAKE_COMMAND} -E copy_if_different
             "${SHADER}"
-            "$<TARGET_FILE_DIR:ProjectSpider>/${NAME}"
-            COMMENT "Copying shader ${NAME}"
+            "${CMAKE_BINARY_DIR}/shaders/${NAME}"
+            COMMENT "Copying shader ${NAME} to shaders/"
     )
 endforeach()
 

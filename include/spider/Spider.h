@@ -73,6 +73,7 @@ namespace spider {
         float walk_speed_;
         float turn_speed_;
         float current_yaw_angle_;
+    float scale_ = 1.0f;
 
         float leg_animation_cycle_;
         float leg_animation_speed_;
