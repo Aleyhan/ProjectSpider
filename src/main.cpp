@@ -153,6 +153,8 @@ int main() {
     GLuint abdomenPLoc    = glGetUniformLocation(abdomenProgram, "projection");
 
     spider::Spider spider(abdomenProgram);
+    camera.setPosition(spider.getPosition() + vec3(0.0f, 5.0f, 10.0f));
+    camera.lookAt(spider.getPosition());
     setupObstacles(obstacleShader);
 
 
@@ -228,10 +230,13 @@ int main() {
 
         spider.update(deltaTime);
 
-        // Collision detection and score update
-        vec3 spiderPos = spider.getPosition(); // Assumes getPosition() returns current position of spider
+        vec3 spiderPos = spider.getPosition();
+        camera.setPosition(spiderPos + vec3(0.0f, 5.0f, 10.0f));
+        camera.lookAt(spiderPos);
+
+        vec3 spiderPosCollision = spider.getPosition(); // Assumes getPosition() returns current position of spider
         for (auto it = obstacles.begin(); it != obstacles.end(); ) {
-            vec3 diff = spiderPos - it->getPosition();
+            vec3 diff = spiderPosCollision - it->getPosition();
             float dist = sqrt(dot(diff, diff));
             if (dist < 1.0f) { // Adjust collision threshold if needed
                 score += it->getPointValue();
@@ -319,6 +324,7 @@ int main() {
         glPopMatrix();
         glMatrixMode(GL_MODELVIEW);
 
+        /*
         // Score box (top-right corner)
         char scoreText[32];
         snprintf(scoreText, sizeof(scoreText), "Score: %d", score);
@@ -373,6 +379,7 @@ int main() {
         glMatrixMode(GL_PROJECTION);
         glPopMatrix();
         glMatrixMode(GL_MODELVIEW);
+        */
 
         glfwSwapBuffers(window);
         glfwPollEvents();

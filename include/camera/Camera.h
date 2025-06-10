@@ -9,6 +9,9 @@ public:
     void processKeyboard(int key);
     mat4 getViewMatrix() const;
 
+    void setPosition(const vec3& pos);
+    void lookAt(const vec3& target);
+
 private:
     vec3 _position;
     vec3 _front;
@@ -22,4 +25,7 @@ private:
     float _sensitivity;
 
     void updateVectors();
+    void updateViewMatrix();
+
+    vec3 _target;
 };

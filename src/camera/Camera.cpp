@@ -60,3 +60,13 @@ void Camera::updateVectors() {
     _right = normalize(cross(_front, _worldUp));
     _up    = normalize(cross(_right, _front));
 }
+
+void Camera::setPosition(const vec3& position) {
+    _position = position;
+}
+
+void Camera::lookAt(const vec3& target) {
+    _front = normalize((target + vec3(0.0f, -2.0f, 0.0f)) - _position);
+    _right = normalize(cross(_front, _worldUp));
+    _up = normalize(cross(_right, _front));
+}
