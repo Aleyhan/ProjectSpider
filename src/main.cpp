@@ -1,4 +1,3 @@
-
 #include <GL/glew.h>
 #include <GLFW/glfw3.h>
 #include "camera/Camera.h"
@@ -10,8 +9,10 @@
 #include "spider/Abdomen.h"
 #include <vector>
 #include <iomanip>
+#include "../external/stb_easy_font.h"
 
 #include "spider/LegSegment.h"
+#include "obstacle/Obstacle.h"
 
 using namespace Angel;
 
@@ -21,10 +22,14 @@ GLuint programID, projLoc, mvLoc;
 // Kamera hedefi (spider dünya merkezinde), uzaklık 5 birim
 
 float spiderX = 0.0f;
+int score = 0;
 float speed = 0.01f;
 
 Camera camera;
 
+std::vector<Obstacle> obstacles;
+
+void setupObstacles(GLuint shaderProgram);
 
 int main() {
     //***********************************************************************************
@@ -140,11 +145,15 @@ int main() {
 
 
     // 1) Load and use shaders for the abdomen
-    GLuint abdomenProgram = InitShader("abdomen_vertex.glsl", "abdomen_fragment.glsl");
+    GLuint abdomenProgram = InitShader("shaders/abdomen_vertex.glsl", "shaders/abdomen_fragment.glsl");
+    GLuint obstacleShader = InitShader("../shaders/obstacle_vertex.glsl", "../shaders/obstacle_fragment.glsl");
+    GLuint obstacleMVLoc = glGetUniformLocation(obstacleShader, "model_view");
+    GLuint obstaclePLoc = glGetUniformLocation(obstacleShader, "projection");
     GLuint abdomenMVLoc   = glGetUniformLocation(abdomenProgram, "model_view");
     GLuint abdomenPLoc    = glGetUniformLocation(abdomenProgram, "projection");
 
     spider::Spider spider(abdomenProgram);
+    setupObstacles(obstacleShader);
 
 
     // 2) setting the axes shader
@@ -219,6 +228,25 @@ int main() {
 
         spider.update(deltaTime);
 
+        // Collision detection and score update
+        vec3 spiderPos = spider.getPosition(); // Assumes getPosition() returns current position of spider
+        for (auto it = obstacles.begin(); it != obstacles.end(); ) {
+            vec3 diff = spiderPos - it->getPosition();
+            float dist = sqrt(dot(diff, diff));
+            if (dist < 1.0f) { // Adjust collision threshold if needed
+                score += it->getPointValue();
+                std::cout << "Collision! Score: " << score << std::endl;
+
+                // Display score as overlay using OpenGL
+                std::string scoreText = "Score: " + std::to_string(score);
+                glfwSetWindowTitle(window, scoreText.c_str());
+
+                it = obstacles.erase(it); // Remove obstacle after collision
+            } else {
+                ++it;
+            }
+        }
+
 
         mat4 Projection = Perspective( 45.0f, 4.0f/3.0f, 0.1f, 100.0f );
         mat4 View       = camera.getViewMatrix();
@@ -231,6 +259,11 @@ int main() {
 
 
         axes.draw(axesMVLoc, axesPLoc, axesMV, Projection);
+
+        for (auto& obs : obstacles) {
+            obs.draw(obstacleMVLoc, obstaclePLoc, View, Projection);
+        }
+
 
         spider.draw(abdomenMVLoc, abdomenPLoc, View, Projection);
 
@@ -248,6 +281,99 @@ int main() {
         glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
         glBindVertexArray(0);
 
+        // Position health bar to top-right using OpenGL overlay (drawn with immediate mode)
+        int health = std::max(0, 10 - score); // Health from 10 to 0
+        glMatrixMode(GL_PROJECTION);
+        glPushMatrix();
+        glLoadIdentity();
+        glOrtho(0, 800, 600, 0, -1, 1); // Top-left origin
+
+        glMatrixMode(GL_MODELVIEW);
+        glPushMatrix();
+        glLoadIdentity();
+
+        glDisable(GL_DEPTH_TEST);
+
+        for (int i = 0; i < 10; ++i) {
+            if (i >= health) glColor3f(0.3f, 0.3f, 0.3f); // gray (empty)
+            else glColor3f(0.0f, 1.0f, 0.0f); // green (full)
+
+            float barWidth = 12;
+            float barHeight = 20;
+            float spacing = 3;
+            float x = 800 - (barWidth + spacing) * (10 - i) - 10;
+            float y = 560; // push closer to top edge
+
+            glBegin(GL_QUADS);
+            glVertex2f(x, y);
+            glVertex2f(x + barWidth, y);
+            glVertex2f(x + barWidth, y + barHeight);
+            glVertex2f(x, y + barHeight);
+            glEnd();
+        }
+
+        glEnable(GL_DEPTH_TEST);
+        glPopMatrix();
+
+        glMatrixMode(GL_PROJECTION);
+        glPopMatrix();
+        glMatrixMode(GL_MODELVIEW);
+
+        // Score box (top-right corner)
+        char scoreText[32];
+        snprintf(scoreText, sizeof(scoreText), "Score: %d", score);
+        char textBuffer[99999];
+
+        glMatrixMode(GL_PROJECTION);
+        glPushMatrix();
+        glLoadIdentity();
+        glOrtho(0, 800, 600, 0, -1, 1); // top-left origin
+
+        glMatrixMode(GL_MODELVIEW);
+        glPushMatrix();
+        glLoadIdentity();
+        glDisable(GL_DEPTH_TEST);
+
+        // Draw white background box
+        glColor3f(1.0f, 1.0f, 1.0f);
+        float boxWidth = 110;
+        float boxHeight = 24;
+        float boxX = 800 - boxWidth - 20; // Increase margin from right edge
+        float boxY = 10; // Top margin
+
+        glBegin(GL_QUADS);
+        glVertex2f(boxX, boxY);
+        glVertex2f(boxX + boxWidth, boxY);
+        glVertex2f(boxX + boxWidth, boxY + boxHeight);
+        glVertex2f(boxX, boxY + boxHeight);
+        glEnd();
+
+        // Draw red border
+        glLineWidth(2.0f);  // Ensure the line is thick enough to see
+        glColor3f(1.0f, 0.0f, 0.0f); // red
+        glBegin(GL_LINE_LOOP);
+        glVertex2f(boxX, boxY);
+        glVertex2f(boxX + boxWidth, boxY);
+        glVertex2f(boxX + boxWidth, boxY + boxHeight);
+        glVertex2f(boxX, boxY + boxHeight);
+        glEnd();
+
+        glPushMatrix();
+        glTranslatef(boxX + 8, boxY + 6, 0); // Slight padding inside box
+        glColor3f(0.0f, 0.0f, 0.0f);
+        glEnableClientState(GL_VERTEX_ARRAY);
+        int quads = stb_easy_font_print(0, 0, scoreText, nullptr, textBuffer, sizeof(textBuffer));
+        glVertexPointer(2, GL_FLOAT, 16, textBuffer);
+        glDrawArrays(GL_QUADS, 0, quads * 4);
+        glDisableClientState(GL_VERTEX_ARRAY);
+        glPopMatrix();
+
+        glEnable(GL_DEPTH_TEST);
+        glPopMatrix();
+        glMatrixMode(GL_PROJECTION);
+        glPopMatrix();
+        glMatrixMode(GL_MODELVIEW);
+
         glfwSwapBuffers(window);
         glfwPollEvents();
     }
@@ -263,4 +389,10 @@ int main() {
     glfwDestroyWindow(window);
     glfwTerminate();
     return 0;
+}
+
+void setupObstacles(GLuint shaderProgram) {
+    obstacles.push_back(Obstacle(vec3(-10.0f, 0.5f, -10.0f), 1.0f, -1, shaderProgram)); // black pawn (penalty)
+    obstacles.push_back(Obstacle(vec3(5.0f, 0.5f, 10.0f), 1.0f, +3, shaderProgram));    // white rook (reward)
+    obstacles.push_back(Obstacle(vec3(-5.0f, 0.5f, 5.0f), 1.0f, -1, shaderProgram));    // black pawn (penalty)
 }
