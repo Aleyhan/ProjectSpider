@@ -19,7 +19,8 @@ Camera::Camera()
       _yaw(-90.0f),  // looking down -Z
       _pitch(0.0f),
       _speed(0.1f),
-      _sensitivity(2.0f)
+      _sensitivity(2.0f),
+      _verticalOffset(2.0f)
 {
     updateVectors();
 }
@@ -66,7 +67,11 @@ void Camera::setPosition(const vec3& position) {
 }
 
 void Camera::lookAt(const vec3& target) {
-    _front = normalize((target + vec3(0.0f, -2.0f, 0.0f)) - _position);
+    _front = normalize((target + vec3(0.0f, -_verticalOffset, 0.0f)) - _position);
     _right = normalize(cross(_front, _worldUp));
     _up = normalize(cross(_right, _front));
+}
+
+void Camera::setVerticalOffset(float offset) {
+    _verticalOffset = offset;
 }

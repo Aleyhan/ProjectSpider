@@ -15,6 +15,7 @@ include_directories(
         ${CMAKE_SOURCE_DIR}/external/glew/include
         ${CMAKE_SOURCE_DIR}/external/Angel/include
         ${CMAKE_SOURCE_DIR}/include/obstacle
+        ${CMAKE_SOURCE_DIR}/external/include/tinyobjloader
 )
 
 # Build platform libraries
@@ -54,6 +55,7 @@ add_executable(ProjectSpider
         ${CMAKE_SOURCE_DIR}/src/spider/LegSegment.cpp
         ${CMAKE_SOURCE_DIR}/src/spider/Leg.cpp
         ${CMAKE_SOURCE_DIR}/include/obstacle/Obstacle.cpp
+        ${CMAKE_SOURCE_DIR}/include/model/Model.cpp
 )
 
 # link the libraries to the executable

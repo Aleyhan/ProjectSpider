@@ -1,3 +1,5 @@
+#include <cstdlib>
+#include <ctime>
 #include <GL/glew.h>
 #include <GLFW/glfw3.h>
 #include "camera/Camera.h"
@@ -32,6 +34,7 @@ std::vector<Obstacle> obstacles;
 void setupObstacles(GLuint shaderProgram);
 
 int main() {
+    srand(static_cast<unsigned>(time(nullptr)));
     //***********************************************************************************
     //***********************************************************************************
     // Initialize GLFW
@@ -399,7 +402,31 @@ int main() {
 }
 
 void setupObstacles(GLuint shaderProgram) {
-    obstacles.push_back(Obstacle(vec3(-10.0f, 0.5f, -10.0f), 1.0f, -1, shaderProgram)); // black pawn (penalty)
-    obstacles.push_back(Obstacle(vec3(5.0f, 0.5f, 10.0f), 1.0f, +3, shaderProgram));    // white rook (reward)
-    obstacles.push_back(Obstacle(vec3(-5.0f, 0.5f, 5.0f), 1.0f, -1, shaderProgram));    // black pawn (penalty)
+    for (int i = 0; i < 10; ++i) {
+        float x = static_cast<float>((rand() % 400 - 200) / 10.0f); // -20.0f to +20.0f
+        float z = static_cast<float>((rand() % 400 - 200) / 10.0f);
+        int type = rand() % 4;
+        int pointValue;
+        std::string modelPath;
+        switch (type) {
+            case 0: // Kale
+                pointValue = 5;
+                modelPath = "models/rook.stl";
+                break;
+            case 1: // Vezir
+                pointValue = 3;
+                modelPath = "models/queen.stl";
+                break;
+            case 2: // Piyon
+                pointValue = 1;
+                modelPath = "models/pawn.stl";
+                break;
+            case 3: // Engelleyici taş
+            default:
+                pointValue = -2;
+                modelPath = "models/blocker.stl";
+                break;
+        }
+        obstacles.push_back(Obstacle(vec3(x, 0.5f, z), 1.0f, pointValue, shaderProgram, modelPath));
+    }
 }
