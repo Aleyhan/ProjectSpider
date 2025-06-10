@@ -56,6 +56,7 @@ add_executable(ProjectSpider
         ${CMAKE_SOURCE_DIR}/src/spider/Leg.cpp
         ${CMAKE_SOURCE_DIR}/include/obstacle/Obstacle.cpp
         ${CMAKE_SOURCE_DIR}/include/model/Model.cpp
+        ${CMAKE_SOURCE_DIR}/external/tinyobjloader/tiny_obj_loader.cc
 )
 
 # link the libraries to the executable
