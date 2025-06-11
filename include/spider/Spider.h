@@ -16,7 +16,7 @@ namespace spider {
 
     class Spider {
     public:
-        Spider(GLuint shaderProgram);
+        Spider(GLuint cephalothoraxShader, GLuint abdomenShader, GLuint legShader, GLuint eyeShader);
         void setPosition(const vec3& pos);
         const vec3& getPosition() const;
 

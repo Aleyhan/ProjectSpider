@@ -16,12 +16,11 @@ inline T clamp(T value, T min, T max) {
 Camera::Camera()
     : _position(0.0f, 1.0f, 5.0f),
       _worldUp(0.0f, 1.0f, 0.0f),
-      _yaw(-90.0f),  // looking down -Z
-      _pitch(0.0f),
+      _yaw(-90.0f), // looking down -Z
+      _pitch(-30.0f),
       _speed(0.1f),
       _sensitivity(2.0f),
-      _verticalOffset(2.0f)
-{
+      _verticalOffset(2.0f) {
     updateVectors();
 }
 
@@ -30,13 +29,13 @@ void Camera::processKeyboard(int key) {
     if (key == GLFW_KEY_S) _position -= _speed * _front;
     if (key == GLFW_KEY_A) _position -= _speed * _right;
     if (key == GLFW_KEY_D) _position += _speed * _right;
-    if (key == GLFW_KEY_C)       _position += _speed * _worldUp;
-    if (key == GLFW_KEY_SPACE)  _position -= _speed * _worldUp;
+    if (key == GLFW_KEY_C) _position += _speed * _worldUp;
+    if (key == GLFW_KEY_SPACE) _position -= _speed * _worldUp;
 
-    if (key == GLFW_KEY_LEFT)   _yaw   -= _sensitivity;
-    if (key == GLFW_KEY_RIGHT)  _yaw   += _sensitivity;
-    if (key == GLFW_KEY_UP)     _pitch += _sensitivity;
-    if (key == GLFW_KEY_DOWN)   _pitch -= _sensitivity;
+    if (key == GLFW_KEY_LEFT) _yaw -= _sensitivity;
+    if (key == GLFW_KEY_RIGHT) _yaw += _sensitivity;
+    if (key == GLFW_KEY_UP) _pitch += _sensitivity;
+    if (key == GLFW_KEY_DOWN) _pitch -= _sensitivity;
 
     // Clamp pitch
     _pitch = clamp(_pitch, -89.0f, 89.0f);
@@ -59,14 +58,14 @@ void Camera::updateVectors() {
     _front = normalize(front);
 
     _right = normalize(cross(_front, _worldUp));
-    _up    = normalize(cross(_right, _front));
+    _up = normalize(cross(_right, _front));
 }
 
-void Camera::setPosition(const vec3& position) {
+void Camera::setPosition(const vec3 &position) {
     _position = position;
 }
 
-void Camera::lookAt(const vec3& target) {
+void Camera::lookAt(const vec3 &target) {
     _front = normalize((target + vec3(0.0f, -_verticalOffset, 0.0f)) - _position);
     _right = normalize(cross(_front, _worldUp));
     _up = normalize(cross(_right, _front));
