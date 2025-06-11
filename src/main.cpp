@@ -21,7 +21,7 @@ using namespace Angel;
 
 // projection + model_view matrices
 GLuint programID, projLoc, mvLoc;
-// Kamera hedefi (spider dünya merkezinde), uzaklık 5 birim
+
 
 float spiderX = 0.0f;
 int score = 0;
@@ -30,8 +30,24 @@ float speed = 0.01f;
 Camera camera;
 
 std::vector<Obstacle> obstacles;
+std::vector<spider::Spider> aiSpiders;
+
+
+
 
 void setupObstacles(GLuint shaderProgram);
+
+void initAISpiders(GLuint shaderProgram) {
+    for (int i = 0; i < 5; ++i) {
+        float x = (rand() % 400 - 200) / 10.0f;
+        float z = (rand() % 400 - 200) / 10.0f;
+        spider::Spider aiSpider(shaderProgram);
+        aiSpider.setPosition(vec3(x, 0.7f, z));
+        aiSpiders.push_back(aiSpider);
+    }
+}
+
+
 
 int main() {
     srand(static_cast<unsigned>(time(nullptr)));
@@ -42,6 +58,8 @@ int main() {
         std::cerr << "Failed to initialize GLFW\n";
         return -1;
     }
+
+
 
     // macOS compatibility
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
@@ -156,9 +174,12 @@ int main() {
     GLuint abdomenPLoc    = glGetUniformLocation(abdomenProgram, "projection");
 
     spider::Spider spider(abdomenProgram);
+    initAISpiders(abdomenProgram);
     camera.setPosition(spider.getPosition() + vec3(0.0f, 5.0f, 10.0f));
     camera.lookAt(spider.getPosition());
     setupObstacles(obstacleShader);
+
+
 
 
     // 2) setting the axes shader
@@ -175,6 +196,21 @@ int main() {
         float currentFrameTime = static_cast<float>(glfwGetTime());
         float deltaTime = currentFrameTime - lastFrameTime;
         lastFrameTime = currentFrameTime;
+
+        for (size_t i = 0; i < aiSpiders.size(); ++i) {
+            auto& ai = aiSpiders[i];
+            float t = static_cast<float>(glfwGetTime()) + i * 1.8f;
+            ai.startWalkingForward();
+            if (fmod(t, 4.0f) < 2.0f) {
+                ai.startTurningLeft();
+                ai.stopTurningRight();
+            } else {
+                ai.startTurningRight();
+                ai.stopTurningLeft();
+            }
+            ai.update(deltaTime);
+        }
+
         // keyboard
         if (glfwGetKey(window, GLFW_KEY_T) == GLFW_PRESS) camera.processKeyboard(GLFW_KEY_W);
         if (glfwGetKey(window, GLFW_KEY_G) == GLFW_PRESS) camera.processKeyboard(GLFW_KEY_S);
@@ -228,6 +264,23 @@ int main() {
             spider.jumpTriggered = true; // Define and initialize the global variable
        }
 
+        for (size_t i = 0; i < aiSpiders.size(); ++i) {
+            auto& ai = aiSpiders[i];
+            float t = static_cast<float>(glfwGetTime()) + i * 1.8f;
+
+            ai.startWalkingForward();
+
+            if (fmod(t, 4.0f) < 2.0f) {
+                ai.startTurningLeft();
+                ai.stopTurningRight();
+            } else {
+                ai.startTurningRight();
+                ai.stopTurningLeft();
+            }
+
+            ai.update(deltaTime);
+        }
+
 
         // Add other spider controls here if needed (e.g., turning)
 
@@ -272,6 +325,9 @@ int main() {
             obs.draw(obstacleMVLoc, obstaclePLoc, View, Projection);
         }
 
+        for (auto& ai : aiSpiders) {
+            ai.draw(abdomenMVLoc, abdomenPLoc, View, Projection);
+        }
 
         spider.draw(abdomenMVLoc, abdomenPLoc, View, Projection);
 
@@ -288,6 +344,8 @@ int main() {
         glBindVertexArray(groundVAO);
         glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
         glBindVertexArray(0);
+
+
 
         // Position health bar to top-right using OpenGL overlay (drawn with immediate mode)
         int health = std::max(0, 10 - score); // Health from 10 to 0
@@ -399,6 +457,8 @@ int main() {
     glfwDestroyWindow(window);
     glfwTerminate();
     return 0;
+
+
 }
 
 void setupObstacles(GLuint shaderProgram) {
