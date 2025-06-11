@@ -62,6 +62,14 @@ const vec3& Spider::getPosition() const {
     return position;
 }
 
+void Spider::setScale(float scale) {
+    scale_ = scale;
+}
+
+float Spider::getScale() const {
+    return scale_;
+}
+
 void Spider::startWalkingForward() {
     is_walking_forward_ = true;
     is_walking_backward_ = false;
@@ -276,7 +284,8 @@ void Spider::update(float deltaTime) {
         ) {
         mat4 R_yaw = Angel::RotateY(current_yaw_angle_);
         mat4 T_translation = Angel::Translate(position);
-        mat4 spiderWorldTransform = T_translation * R_yaw;
+        mat4 S_scale = Angel::Scale(scale_, scale_, scale_);
+        mat4 spiderWorldTransform = T_translation * R_yaw * S_scale;
 
         mat4 V = viewMatrix;
 
@@ -353,5 +362,92 @@ void Spider::update(float deltaTime) {
         }
     }
     }
+
+    void Spider::drawAllComponents(
+    GLuint cephMVLoc, GLuint cephPLoc,
+    GLuint abdMVLoc, GLuint abdPLoc,
+    GLuint legMVLoc, GLuint legPLoc,
+    GLuint eyeMVLoc, GLuint eyePLoc,
+    const mat4& viewMatrix,
+    const mat4& projMatrix
+) {
+    mat4 R_yaw = Angel::RotateY(current_yaw_angle_);
+    mat4 T_translation = Angel::Translate(position);
+    mat4 S_scale = Angel::Scale(scale_, scale_, scale_);
+    mat4 spiderWorldTransform = T_translation * R_yaw * S_scale;
+    mat4 V = viewMatrix;
+
+    // 1. CEPHALOTHORAX (GÖVDE) ÇİZ
+    mat4 modelCT_View = V * spiderWorldTransform;
+    cephalothorax.draw(cephMVLoc, cephPLoc, modelCT_View, projMatrix);
+
+    // 2. ABDOMEN ÇİZ
+    const float rz_abdomen = ABDOMEN_RADIUS * ABDOMEN_SCALE_Z;
+    float current_abdomen_tilt = base_abdomen_tilt_angle_;
+    float shake_offset = sin(abdomen_shake_cycle_ * 2.0f * static_cast<float>(M_PI)) * max_abdomen_shake_amplitude_;
+    current_abdomen_tilt += shake_offset;
+
+    mat4 R_tilt_ab = Angel::RotateX(current_abdomen_tilt);
+    mat4 T_pivot_ab = Angel::Translate(0, 0, -rz_abdomen*1.8f);
+    mat4 abdomenLocalToParent = R_tilt_ab * T_pivot_ab;
+    mat4 modelAbdomen_View = V * spiderWorldTransform * abdomenLocalToParent;
+    abdomen.draw(abdMVLoc, abdPLoc, modelAbdomen_View, projMatrix);
+
+    // 3. HEAD ÇİZ
+    vec3 localHeadPos = cephalothorax.getHeadAnchorPoint();
+    mat4 headLocalToCeph = Angel::Translate(localHeadPos);
+    mat4 modelHead_World = spiderWorldTransform * headLocalToCeph;
+    mat4 modelHead_View = V * modelHead_World;
+    head.draw(cephMVLoc, cephPLoc, modelHead_View, projMatrix);
+
+    // 4. EYES ÇİZ
+    vec3 headAnchor = head.getMostFrontVertex();
+    float scaleFactor = ABDOMEN_RADIUS*HEAD_SCALE / (DEFAULT_ABDOMEN_RADIUS*0.5);
+    vec3 leftOffset = vec3(-0.07f*scaleFactor, +0.05f*scaleFactor, 0.1f*scaleFactor);
+    vec3 rightOffset = vec3(+0.07f*scaleFactor, +0.05f*scaleFactor, 0.1f*scaleFactor);
+    float zElongation = 1.2f;
+
+    mat4 modelLeftEye_View = V * modelHead_World * Angel::Translate(headAnchor + leftOffset)*Angel::Scale(1.0f, 1.0f, zElongation);
+    mat4 modelRightEye_View = V * modelHead_World * Angel::Translate(headAnchor + rightOffset)*Angel::Scale(1.0f, 1.0f, zElongation);
+    leftEye.draw(eyeMVLoc, eyePLoc, modelLeftEye_View, projMatrix);
+    rightEye.draw(eyeMVLoc, eyePLoc, modelRightEye_View, projMatrix);
+
+    vec3 leftOffset2 = vec3(-0.15f*scaleFactor, -0.15f*scaleFactor, 0.1f*scaleFactor);
+    vec3 rightOffset2 = vec3(+0.15f*scaleFactor, -0.15f*scaleFactor, 0.1f*scaleFactor);
+    mat4 modelLeftEye2_View = V * modelHead_World * Angel::Translate(headAnchor + leftOffset2) * Angel::Scale(0.7f, zElongation*0.7f, 0.7f);
+    mat4 modelRightEye2_View = V * modelHead_World * Angel::Translate(headAnchor + rightOffset2) * Angel::Scale(0.7f, zElongation*0.7f, 0.7f);
+    leftEye2.draw(eyeMVLoc, eyePLoc, modelLeftEye2_View, projMatrix);
+    rightEye2.draw(eyeMVLoc, eyePLoc, modelRightEye2_View, projMatrix);
+
+    // 5. LEGS ÇİZ
+    std::vector<vec3> legAttachPoints = cephalothorax.getLegAttachmentPoints();
+
+    float swing_phase_rad = leg_animation_cycle_ * 2.0f * static_cast<float>(M_PI);
+    float current_swing_angle_deg = sin(swing_phase_rad) * max_leg_swing_angle_;
+
+    float legRotationGroup1 = current_swing_angle_deg;
+    float legRotationGroup2 = -current_swing_angle_deg;
+
+    if (legAttachPoints.size() >= 8) {
+        Leg* leg_objects[8] = {&leg, &leg2, &leg3, &leg4, &leg5, &leg6, &leg7, &leg8};
+        float leg_anim_rotations[8] = {
+            legRotationGroup1, legRotationGroup2, legRotationGroup2, legRotationGroup1,
+            legRotationGroup1, legRotationGroup2, legRotationGroup2, legRotationGroup1
+        };
+        bool scale_x_negatively[8] = { true, false, true, false, true, false, true, false };
+
+        for(int i=0; i<8; ++i) {
+            mat4 leg_attachment_transform = Angel::Translate(legAttachPoints[i]);
+            mat4 leg_animation_rotation_transform = Angel::RotateY(leg_anim_rotations[i]);
+            mat4 leg_scale_transform = mat4();
+            if (scale_x_negatively[i]) {
+                leg_scale_transform = Angel::Scale(-1.0f, 1.0f, 1.0f);
+            }
+            mat4 leg_world_root_animated = spiderWorldTransform * leg_attachment_transform * leg_animation_rotation_transform * leg_scale_transform;
+            mat4 legModelViewMatrix = V * leg_world_root_animated;
+            leg_objects[i]->draw(legMVLoc, legPLoc, legModelViewMatrix, projMatrix);
+        }
+    }
+}
 } // namespace spider
 // --- End of Spider.cpp ---

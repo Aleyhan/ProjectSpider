@@ -38,13 +38,23 @@ std::vector<spider::Spider> aiSpiders;
 void setupObstacles(GLuint shaderProgram);
 
 void initAISpiders(GLuint cephalothoraxShader, GLuint abdomenShader, GLuint legShader, GLuint eyeShader) {
-    for (int i = 0; i < 5; ++i) {
+    // Önceki AI örümcekleri temizle
+    aiSpiders.clear();
+
+    // Yeni AI örümcekler oluştur
+    for (int i = 0; i < 50; ++i) {
         float x = (rand() % 400 - 200) / 10.0f;
         float z = (rand() % 400 - 200) / 10.0f;
-        spider::Spider aiSpider(cephalothoraxShader, abdomenShader, legShader, eyeShader);
-        aiSpider.setPosition(vec3(x, 0.7f, z));
-        aiSpiders.push_back(aiSpider);
+
+        // Yeni bir Spider nesnesi oluştur
+        spider::Spider newSpider(cephalothoraxShader, abdomenShader, legShader, eyeShader);
+        newSpider.setPosition(vec3(x, 0.7f, z));
+        newSpider.setScale(0.25f); // Make AI spiders smaller
+
+        // Vektöre ekle
+        aiSpiders.push_back(newSpider);
     }
+
 }
 
 
@@ -177,6 +187,13 @@ int main() {
     GLuint obstaclePLoc = glGetUniformLocation(obstacleShader, "projection");
     GLuint abdomenMVLoc   = glGetUniformLocation(abdomenShader, "model_view");
     GLuint abdomenPLoc    = glGetUniformLocation(abdomenShader, "projection");
+    GLuint cephalothoraxMVLoc = glGetUniformLocation(cephalothoraxShader, "model_view");
+    GLuint cephalothoraxPLoc = glGetUniformLocation(cephalothoraxShader, "projection");
+    GLuint legMVLoc = glGetUniformLocation(legShader, "model_view");
+    GLuint legPLoc = glGetUniformLocation(legShader, "projection");
+    GLuint eyeMVLoc = glGetUniformLocation(eyeShader, "model_view");
+    GLuint eyePLoc = glGetUniformLocation(eyeShader, "projection");
+
 
     spider::Spider spider(cephalothoraxShader, abdomenShader, legShader, eyeShader);
     initAISpiders(cephalothoraxShader, abdomenShader, legShader, eyeShader);
@@ -296,18 +313,48 @@ int main() {
         camera.lookAt(spiderPos);
 
         vec3 spiderPosCollision = spider.getPosition(); // Assumes getPosition() returns current position of spider
+
+        // Check collision with obstacles
         for (auto it = obstacles.begin(); it != obstacles.end(); ) {
             vec3 diff = spiderPosCollision - it->getPosition();
             float dist = sqrt(dot(diff, diff));
             if (dist < 1.0f) { // Adjust collision threshold if needed
                 score += it->getPointValue();
-                std::cout << "Collision! Score: " << score << std::endl;
+                std::cout << "Collision with obstacle! Score: " << score << std::endl;
 
                 // Display score as overlay using OpenGL
                 std::string scoreText = "Score: " + std::to_string(score);
                 glfwSetWindowTitle(window, scoreText.c_str());
 
                 it = obstacles.erase(it); // Remove obstacle after collision
+            } else {
+                ++it;
+            }
+        }
+
+        // Check collision with AI spiders
+        for (auto it = aiSpiders.begin(); it != aiSpiders.end(); ) {
+            vec3 diff = spiderPosCollision - it->getPosition();
+            float dist = sqrt(dot(diff, diff));
+            if (dist < 1.5f) { // Slightly larger threshold for spiders
+                score += 10; // Add points for eating a spider
+                std::cout << "Spider eaten! Score: " << score << std::endl;
+
+                // Display score as overlay using OpenGL
+                std::string scoreText = "Score: " + std::to_string(score);
+                glfwSetWindowTitle(window, scoreText.c_str());
+
+                it = aiSpiders.erase(it); // Remove the eaten spider
+
+                // Increase player spider's size when it eats an AI spider
+                float currentScale = spider.getScale();
+                spider.setScale(currentScale + 0.1f); // Grow by 5% each time
+                std::cout << "Spider grew! New scale: " << spider.getScale() << std::endl;
+
+                // If all spiders are eaten, spawn new ones
+                if (aiSpiders.empty()) {
+                    initAISpiders(cephalothoraxShader, abdomenShader, legShader, eyeShader);
+                }
             } else {
                 ++it;
             }
@@ -324,17 +371,25 @@ int main() {
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 
-        axes.draw(axesMVLoc, axesPLoc, axesMV, Projection);
+        // axes.draw(axesMVLoc, axesPLoc, axesMV, Projection);
 
         for (auto& obs : obstacles) {
             obs.draw(obstacleMVLoc, obstaclePLoc, View, Projection);
         }
 
-        for (auto& ai : aiSpiders) {
-            ai.draw(abdomenMVLoc, abdomenPLoc, View, Projection);
+        for (auto& aiSpider : aiSpiders) {
+            aiSpider.drawAllComponents(cephalothoraxMVLoc, cephalothoraxPLoc,
+                                      abdomenMVLoc, abdomenPLoc,
+                                      legMVLoc, legPLoc,
+                                      eyeMVLoc, eyePLoc,
+                                      View, Projection);
         }
 
+
+
+        glUseProgram(abdomenShader);
         spider.draw(abdomenMVLoc, abdomenPLoc, View, Projection);
+
 
 
         // Draw ground
@@ -390,7 +445,6 @@ int main() {
         glPopMatrix();
         glMatrixMode(GL_MODELVIEW);
 
-        /*
         // Score box (top-right corner)
         char scoreText[32];
         snprintf(scoreText, sizeof(scoreText), "Score: %d", score);
@@ -445,7 +499,6 @@ int main() {
         glMatrixMode(GL_PROJECTION);
         glPopMatrix();
         glMatrixMode(GL_MODELVIEW);
-        */
 
         glfwSwapBuffers(window);
         glfwPollEvents();

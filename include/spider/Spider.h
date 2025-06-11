@@ -15,10 +15,13 @@
 namespace spider {
 
     class Spider {
+
     public:
         Spider(GLuint cephalothoraxShader, GLuint abdomenShader, GLuint legShader, GLuint eyeShader);
         void setPosition(const vec3& pos);
         const vec3& getPosition() const;
+        void setScale(float scale);
+        float getScale() const;
 
         void startWalkingForward();
         void stopWalkingForward();
@@ -39,6 +42,10 @@ namespace spider {
                                       const std::vector<std::vector<float>>& matrix2);
 
         void draw(GLuint modelViewLoc, GLuint projectionLoc, const mat4& viewMatrix, const mat4& projMatrix);
+
+        void drawAllComponents(GLuint cephMVLoc, GLuint cephPLoc, GLuint abdMVLoc, GLuint abdPLoc, GLuint legMVLoc,
+                               GLuint legPLoc, GLuint eyeMVLoc, GLuint eyePLoc, const mat4 &viewMatrix,
+                               const mat4 &projMatrix);
 
         const std::vector<vec3>& getInitialLegTipGroundContacts() const;
         Leg leg, leg2, leg3, leg4, leg5, leg6, leg7, leg8;
