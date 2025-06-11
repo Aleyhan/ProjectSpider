@@ -37,11 +37,11 @@ std::vector<spider::Spider> aiSpiders;
 
 void setupObstacles(GLuint shaderProgram);
 
-void initAISpiders(GLuint shaderProgram) {
+void initAISpiders(GLuint cephalothoraxShader, GLuint abdomenShader, GLuint legShader, GLuint eyeShader) {
     for (int i = 0; i < 5; ++i) {
         float x = (rand() % 400 - 200) / 10.0f;
         float z = (rand() % 400 - 200) / 10.0f;
-        spider::Spider aiSpider(shaderProgram);
+        spider::Spider aiSpider(cephalothoraxShader, abdomenShader, legShader, eyeShader);
         aiSpider.setPosition(vec3(x, 0.7f, z));
         aiSpiders.push_back(aiSpider);
     }
@@ -101,12 +101,14 @@ int main() {
 
     for (int i = 0; i < checkImageHeight; i++) {
         for (int j = 0; j < checkImageWidth; j++) {
-            int c = (((i & 8) == 0) ^ ((j & 8) == 0)) * 255;
-            checkImage[i][j][0] = (GLubyte)c;
-            checkImage[i][j][1] = (GLubyte)c;
-            checkImage[i][j][2] = (GLubyte)c;
+            // Rastgele yeşil tonları oluştur
+            GLubyte baseGreen = 100 + (rand() % 50);  // 100-150 arası yeşil tonu
+            checkImage[i][j][0] = (GLubyte)(baseGreen * 0.4);  // R değeri (yeşilin %40'ı)
+            checkImage[i][j][1] = (GLubyte)baseGreen;          // G değeri (ana yeşil)
+            checkImage[i][j][2] = (GLubyte)(baseGreen * 0.4);  // B değeri (yeşilin %40'ı)
         }
     }
+
 
     GLuint checkerTexture;
     glGenTextures(1, &checkerTexture);
@@ -166,15 +168,18 @@ int main() {
 
 
     // 1) Load and use shaders for the abdomen
-    GLuint abdomenProgram = InitShader("shaders/abdomen_vertex.glsl", "shaders/abdomen_fragment.glsl");
+    GLuint cephalothoraxShader = InitShader("../shaders/spider_vertex.glsl", "../shaders/cephalothorax_fragment.glsl");
+    GLuint abdomenShader = InitShader("../shaders/spider_vertex.glsl", "../shaders/abdomen_fragment.glsl");
+    GLuint legShader = InitShader("../shaders/spider_vertex.glsl", "../shaders/leg_fragment.glsl");
+    GLuint eyeShader = InitShader("../shaders/spider_vertex.glsl", "../shaders/eye_fragment.glsl");
     GLuint obstacleShader = InitShader("../shaders/obstacle_vertex.glsl", "../shaders/obstacle_fragment.glsl");
     GLuint obstacleMVLoc = glGetUniformLocation(obstacleShader, "model_view");
     GLuint obstaclePLoc = glGetUniformLocation(obstacleShader, "projection");
-    GLuint abdomenMVLoc   = glGetUniformLocation(abdomenProgram, "model_view");
-    GLuint abdomenPLoc    = glGetUniformLocation(abdomenProgram, "projection");
+    GLuint abdomenMVLoc   = glGetUniformLocation(abdomenShader, "model_view");
+    GLuint abdomenPLoc    = glGetUniformLocation(abdomenShader, "projection");
 
-    spider::Spider spider(abdomenProgram);
-    initAISpiders(abdomenProgram);
+    spider::Spider spider(cephalothoraxShader, abdomenShader, legShader, eyeShader);
+    initAISpiders(cephalothoraxShader, abdomenShader, legShader, eyeShader);
     camera.setPosition(spider.getPosition() + vec3(0.0f, 5.0f, 10.0f));
     camera.lookAt(spider.getPosition());
     setupObstacles(obstacleShader);
@@ -287,7 +292,7 @@ int main() {
         spider.update(deltaTime);
 
         vec3 spiderPos = spider.getPosition();
-        camera.setPosition(spiderPos + vec3(0.0f, 5.0f, 10.0f));
+        camera.setPosition(spiderPos + vec3(0.0f, 5.0f, 15.0f));  // Yüksekliği ve uzaklığı ayarla
         camera.lookAt(spiderPos);
 
         vec3 spiderPosCollision = spider.getPosition(); // Assumes getPosition() returns current position of spider
