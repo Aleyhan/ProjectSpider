@@ -33,12 +33,12 @@ namespace spider {
       turn_speed_(90.0f),
       current_yaw_angle_(0.0f),
       leg_animation_cycle_(0.0f),
-      leg_animation_speed_(2.0f),
-      max_leg_swing_angle_(35.0f),
+      leg_animation_speed_(1.4f),
+      max_leg_swing_angle_(15.0f),
       base_abdomen_tilt_angle_(ABDOMEN_TILT_ANGLE),
       abdomen_shake_cycle_(0.0f),
       abdomen_shake_speed_(3.0f),
-      max_abdomen_shake_amplitude_(10.0f) {
+      max_abdomen_shake_amplitude_(5.0f) {
 
         std::vector<float> angles = {20.0f, 5.0f, -10.0f, -35.0f, -20.0f, -30.0f, -10.0f};
         leg.setJointAngles(angles);
@@ -138,7 +138,9 @@ void Spider::applyIKToAllLegs(
 
 void Spider::moveBodyUp() {
     position.y += 0.05f; // Adjust this value as needed
-
+        if (position.y > 2.0f) {
+            position.y = 2.0f;
+        }
     // Update leg positions with IK
     std::vector<spider::Leg*> legs = {&leg, &leg2, &leg3, &leg4, &leg5, &leg6, &leg7, &leg8};
     std::vector<vec3> attachPoints = cephalothorax.getLegAttachmentPoints();
@@ -155,7 +157,9 @@ void Spider::moveBodyUp() {
 
 void Spider::moveBodyDown() {
     position.y -= 0.05f; // Adjust this value as needed
-
+        if (position.y < 0.30f) {
+            position.y = 0.30f;
+        }
     // Update leg positions with IK
     std::vector<spider::Leg*> legs = {&leg, &leg2, &leg3, &leg4, &leg5, &leg6, &leg7, &leg8};
     std::vector<vec3> attachPoints = cephalothorax.getLegAttachmentPoints();
@@ -246,7 +250,7 @@ void Spider::update(float deltaTime) {
     if (is_active) {
         leg_animation_cycle_ += leg_animation_speed_ * deltaTime;
         if (leg_animation_cycle_ > 1.0f) {
-            leg_animation_cycle_ -= 1.0f;
+            leg_animation_cycle_ -= 2.0f;
         }
 
         abdomen_shake_cycle_ += abdomen_shake_speed_ * deltaTime;
@@ -320,7 +324,7 @@ void Spider::update(float deltaTime) {
 
     // Leg swing is always calculated based on leg_animation_cycle_
     // which pauses if spider is not active
-    float swing_phase_rad = leg_animation_cycle_ * 2.0f * static_cast<float>(M_PI);
+    float swing_phase_rad = leg_animation_cycle_ * 1.0f * static_cast<float>(M_PI);
     float current_swing_angle_deg = sin(swing_phase_rad) * max_leg_swing_angle_;
 
     float legRotationGroup1 = current_swing_angle_deg;
