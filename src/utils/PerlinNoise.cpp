@@ -1,5 +1,10 @@
 // PerlinNoise.cpp
+// Reference: *https://garagefarm.net/blog/perlin-noise-implementation-procedural-generation-and-simplex-noise
+// Reference: https://en.wikipedia.org/wiki/Perlin_noise
+// PerlinNoise.cpp is written by AI with GEMINI and ChatGPT
+
 #include "utils/PerlinNoise.h"
+
 
 PerlinNoise::PerlinNoise() {
     generatePermutation();

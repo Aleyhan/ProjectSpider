@@ -10,10 +10,6 @@ namespace spider {
 
     class Leg {
     public:
-        // shaderProgram: shared shader used by all segments
-        // numSegments: 7 for a spider
-        // segmentLength: default length for each segment
-        // segmentThickness: thickness of each segment
         Leg(GLuint shaderProgram,
             int numSegments = 7,
             float segmentLength = 0.4f,
@@ -25,13 +21,11 @@ namespace spider {
         const std::vector<float>& getJointAngles() const; // Added getter
 
 
-        // Draw the entire leg. modelMatrix should already include the world→root transform.
         void draw(GLuint modelViewLoc,
                   GLuint projectionLoc,
                   const mat4& modelMatrix,
                   const mat4& projMatrix);
 
-        // After draw(), you can query where each segment ended in world space
         const std::vector<vec3>& getSegmentEnds() const;
 
         std::vector<float> inverseKinematicsCCD(

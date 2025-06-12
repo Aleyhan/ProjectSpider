@@ -115,7 +115,6 @@ void Head::generateIndices(
         return vec3(0.0f, 0.0f, 0.0f);
     }
 
-    // Still use raw vertices as requested
     vec3 maxZVertex = _vertexPositionsEye[0];
 
     for (const auto& vertex : _vertexPositionsEye) {
@@ -124,8 +123,6 @@ void Head::generateIndices(
         }
     }
 
-    // Apply a small offset to avoid exact coordinate values that might trigger axes
-    // Using 0.001 to minimize visual impact but still avoid the axes
     return maxZVertex + vec3(0.001f, 0.001f, 0.001f);
 }
 

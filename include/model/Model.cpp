@@ -11,9 +11,6 @@ Model::Model(const std::string& path)
     std::cerr << "Model(path) constructor is not yet implemented.\n";
 }
 
-#include "model/Model.h"
-#include <iostream>
-
 Model::Model(const std::string& objPath, const std::string& mtlPath, GLuint shaderProgram)
     : program(shaderProgram)
 {

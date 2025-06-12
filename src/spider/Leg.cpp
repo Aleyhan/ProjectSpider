@@ -11,7 +11,6 @@ namespace spider {
              float segmentThickness)
         : thickness(segmentThickness)
     {
-        // Initialize shared geometry if not already done
         LegSegment::initSharedGeometry(shaderProgram);
 
         segments.reserve(numSegments);
@@ -19,7 +18,6 @@ namespace spider {
         segmentEnds.resize(numSegments);
 
         for (int i = 0; i < numSegments; ++i) {
-            // Create segment with the specified length and thickness
             segments.emplace_back(segmentLength, segmentThickness);
         }
     }
@@ -51,7 +49,6 @@ namespace spider {
         }
     }
 
-    // CCD Inverse Kinematics for planar leg
     std::vector<float> Leg::inverseKinematicsCCD(
         float x_target, float y_target, float L, int n, int maxIter, float tol,
         const std::vector<float>& theta_min, const std::vector<float>& theta_max
@@ -89,7 +86,6 @@ namespace spider {
          segmentEnds.clear();
          segmentEnds.reserve(segments.size());
 
-         // 'current' is the running transform from the root down the chain
          mat4 current = modelMatrix;
 
          for (int i = 0; i < (int)segments.size(); ++i) {
