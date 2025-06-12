@@ -36,7 +36,7 @@ namespace spider {
     const std::vector<vec3>& Leg::getSegmentEnds() const {
         return segmentEnds;
     }
-
+    // Applied from matlab (which is written by us inspired from "NUMERICAL METHODS FOR MECHANICAL ENGINEERING-01 (MECH307”))by help of gemini.
     void Leg::forwardKinematics(const std::vector<float>& theta_deg, float L, std::vector<float>& x, std::vector<float>& y) {
         x.assign(theta_deg.size() + 1, 0.0f);
         y.assign(theta_deg.size() + 1, 0.0f);
@@ -49,7 +49,7 @@ namespace spider {
         }
     }
 
-    std::vector<float> Leg::inverseKinematicsCCD(
+    std::vector<float> Leg::inverseKinematicsCCD( // Applied from matlab (which is written by us inspired from "NUMERICAL METHODS FOR MECHANICAL ENGINEERING-01 (MECH307”))by help of gemini.
         float x_target, float y_target, float L, int n, int maxIter, float tol,
         const std::vector<float>& theta_min, const std::vector<float>& theta_max
     ) {

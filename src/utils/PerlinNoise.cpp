@@ -59,9 +59,9 @@ float PerlinNoise::noise(float x, float y, float z) {
     int BB = p[B + 1] + Z;
 
     // Add blended results from 8 corners of the cube
-    float res = lerp(w, lerp(v, lerp(u, grad(p[AA], x, y, z),      // AND ADD THE GRADIENT VALUE FOR THE PRIMARY AXIS
-                                         grad(p[BA], x - 1, y, z)),   // AND ADD THE GRADIENT VALUE FOR THE NEXT AXIS
-                                lerp(u, grad(p[AB], x, y - 1, z),    // AND SO ON
+    float res = lerp(w, lerp(v, lerp(u, grad(p[AA], x, y, z),
+                                         grad(p[BA], x - 1, y, z)),
+                                lerp(u, grad(p[AB], x, y - 1, z),
                                          grad(p[BB], x - 1, y - 1, z))),
                         lerp(v, lerp(u, grad(p[AA + 1], x, y, z - 1),
                                          grad(p[BA + 1], x - 1, y, z - 1)),

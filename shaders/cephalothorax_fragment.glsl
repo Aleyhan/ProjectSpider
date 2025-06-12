@@ -6,10 +6,10 @@
  out vec4 fragColor;
 
  void main() {
-     // Dark gray body color
+
      vec3 baseColor = vec3(0.2, 0.2, 0.2);
 
-     // Basic lighting
+
      vec3 lightDir = normalize(vec3(1.0, 1.0, 1.0));
      vec3 normal = normalize(fNormal);
      float diff = max(dot(normal, lightDir), 0.4);
