@@ -1,3 +1,7 @@
+// Reference: https://en.wikipedia.org/wiki/Perlin_noise
+// Reference: *https://garagefarm.net/blog/perlin-noise-implementation-procedural-generation-and-simplex-noise
+
+
 #ifndef PERLIN_NOISE_H
 #define PERLIN_NOISE_H
 

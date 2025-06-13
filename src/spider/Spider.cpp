@@ -377,11 +377,9 @@ void Spider::update(float deltaTime) {
     mat4 spiderWorldTransform = T_translation * R_yaw * S_scale;
     mat4 V = viewMatrix;
 
-    // 1. CEPHALOTHORAX (GÖVDE) ÇİZ
     mat4 modelCT_View = V * spiderWorldTransform;
     cephalothorax.draw(cephMVLoc, cephPLoc, modelCT_View, projMatrix);
 
-    // 2. ABDOMEN ÇİZ
     const float rz_abdomen = ABDOMEN_RADIUS * ABDOMEN_SCALE_Z;
     float current_abdomen_tilt = base_abdomen_tilt_angle_;
     float shake_offset = sin(abdomen_shake_cycle_ * 2.0f * static_cast<float>(M_PI)) * max_abdomen_shake_amplitude_;
@@ -393,14 +391,12 @@ void Spider::update(float deltaTime) {
     mat4 modelAbdomen_View = V * spiderWorldTransform * abdomenLocalToParent;
     abdomen.draw(abdMVLoc, abdPLoc, modelAbdomen_View, projMatrix);
 
-    // 3. HEAD ÇİZ
     vec3 localHeadPos = cephalothorax.getHeadAnchorPoint();
     mat4 headLocalToCeph = Angel::Translate(localHeadPos);
     mat4 modelHead_World = spiderWorldTransform * headLocalToCeph;
     mat4 modelHead_View = V * modelHead_World;
     head.draw(cephMVLoc, cephPLoc, modelHead_View, projMatrix);
 
-    // 4. EYES ÇİZ
     vec3 headAnchor = head.getMostFrontVertex();
     float scaleFactor = ABDOMEN_RADIUS*HEAD_SCALE / (DEFAULT_ABDOMEN_RADIUS*0.5);
     vec3 leftOffset = vec3(-0.07f*scaleFactor, +0.05f*scaleFactor, 0.1f*scaleFactor);
@@ -419,7 +415,6 @@ void Spider::update(float deltaTime) {
     leftEye2.draw(eyeMVLoc, eyePLoc, modelLeftEye2_View, projMatrix);
     rightEye2.draw(eyeMVLoc, eyePLoc, modelRightEye2_View, projMatrix);
 
-    // 5. LEGS ÇİZ
     std::vector<vec3> legAttachPoints = cephalothorax.getLegAttachmentPoints();
 
     float swing_phase_rad = leg_animation_cycle_ * 2.0f * static_cast<float>(M_PI);

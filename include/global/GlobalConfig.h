@@ -15,5 +15,5 @@ const float NOISE_SCALE = 10.0f;
 const float NOISE_STRENGHT = 0.3f;
 
 // Head configuration
-const float HEAD_SCALE = 0.4f;   // Relative to ABDOMEN_RADIUS
-const float HEAD_SCALE_Z = 0.85f; // Elongation factor along Z-axis
+const float HEAD_SCALE = 0.4f;
+const float HEAD_SCALE_Z = 0.85f;

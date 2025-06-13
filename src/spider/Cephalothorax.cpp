@@ -68,7 +68,6 @@ void Cephalothorax::generateVertexData(
             float y = radiusY * sinV * sinU;
             float z = radiusZ * cosV;
 
-            // Calculate normal before displacement for accurate displacement along normal
             float nx = sinV * cosU / radiusX;
             float ny = sinV * sinU / radiusY;
             float nz = cosV / radiusZ;
@@ -76,16 +75,13 @@ void Cephalothorax::generateVertexData(
 
             _vertexPositionsNormal.push_back(vec3(x, y, z));
 
-            // Apply noise-based displacement
             float noiseValue = perlin.noise(x * noiseScale, y * noiseScale, z * noiseScale);
             x += normal.x * noiseValue * noiseStrength;
             y += normal.y * noiseValue * noiseStrength;
             z += normal.z * noiseValue * noiseStrength;
 
-            // Store vertex position for later use
             _vertexPositions.emplace_back(x, y, z);
 
-            // Add interleaved vertex data (position + normal)
             interleavedData.push_back(x);
             interleavedData.push_back(y);
             interleavedData.push_back(z);
@@ -105,12 +101,10 @@ void Cephalothorax::generateIndices(
             GLuint row1 = i * (slices + 1) + j;
             GLuint row2 = row1 + (slices + 1);
 
-            // First triangle
             indices.push_back(row1);
             indices.push_back(row2);
             indices.push_back(row1 + 1);
 
-            // Second triangle
             indices.push_back(row2);
             indices.push_back(row2 + 1);
             indices.push_back(row1 + 1);
@@ -124,43 +118,35 @@ void Cephalothorax::uploadToGPU(
     const std::vector<GLfloat>& interleavedData,
     const std::vector<GLuint>& indices
 ) {
-    // Clean up previous buffers if they exist
     cleanup();
 
-    // Generate new buffers
     glGenVertexArrays(1, &_vao);
     glGenBuffers(1, &_vbo);
     glGenBuffers(1, &_ebo);
 
     glBindVertexArray(_vao);
 
-    // Upload vertex data
     glBindBuffer(GL_ARRAY_BUFFER, _vbo);
     glBufferData(GL_ARRAY_BUFFER,
                  interleavedData.size() * sizeof(GLfloat),
                  interleavedData.data(),
                  GL_STATIC_DRAW);
 
-    // Upload index data
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, _ebo);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER,
                  indices.size() * sizeof(GLuint),
                  indices.data(),
                  GL_STATIC_DRAW);
 
-    // Set attribute pointers
     constexpr GLuint stride = 6 * sizeof(GLfloat);
 
-    // Position attribute
     glEnableVertexAttribArray(0);
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, stride, (void*)0);
 
-    // Normal attribute
     glEnableVertexAttribArray(1);
     glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, stride,
                          (void*)(3 * sizeof(GLfloat)));
 
-    // Unbind VAO
     glBindVertexArray(0);
 }
 
@@ -174,15 +160,13 @@ std::vector<vec3> Cephalothorax::getLegAttachmentPoints() const {
     attachmentPoints.reserve(8);
     const int points_per_side = 4;
 
-    // Cephalothorax dimensions based on GlobalConfig constants
     const float cephBaseRadius = ABDOMEN_RADIUS * 0.8f;
     const float cephRadiusX = cephBaseRadius * ABDOMEN_SCALE_X * 0.7f;
     const float cephRadiusZ = cephBaseRadius * ABDOMEN_SCALE_Z * 1.1f;
 
     if (_vertexPositionsNormal.empty()) {
-        // Fallback: If no vertices, create 8 default points based on typical Cephalothorax dimensions
-        float default_side_x = cephRadiusX * 0.85f; // Approximate X position for sides
-        float z_attach_min = -cephRadiusZ * 0.8f;    // Z extent for attachment, similar to Z filtering
+        float default_side_x = cephRadiusX * 0.85f;
+        float z_attach_min = -cephRadiusZ * 0.8f;
         float z_attach_max =  cephRadiusZ * 0.8f;
 
         for (int i = 0; i < points_per_side; ++i) {
@@ -194,7 +178,6 @@ std::vector<vec3> Cephalothorax::getLegAttachmentPoints() const {
         return attachmentPoints;
     }
 
-    // 1. Find extreme X values from actual vertices
     float minX_actual = std::numeric_limits<float>::max();
     float maxX_actual = -std::numeric_limits<float>::max();
     for (const vec3& vertex : _vertexPositionsNormal) {
@@ -202,31 +185,25 @@ std::vector<vec3> Cephalothorax::getLegAttachmentPoints() const {
         if (vertex.x > maxX_actual) maxX_actual = vertex.x;
     }
 
-    // Ensure minX/maxX are valid, otherwise use calculated cephRadiusX
-    if (minX_actual >= maxX_actual - 0.01f) { // Check if range is too small or inverted
+    if (minX_actual >= maxX_actual - 0.01f) {
         minX_actual = -cephRadiusX;
         maxX_actual =  cephRadiusX;
     }
 
-    // 2. Define X thresholds to identify side vertices
-    // These thresholds define the "sides" of the cephalothorax.
-    // Using a percentage of the total width to find the side regions.
     float x_width = maxX_actual - minX_actual;
-    float leftThreshold = minX_actual + x_width * 0.20f;  // Points left of this are "left side"
-    float rightThreshold = maxX_actual - x_width * 0.20f; // Points right of this are "right side"
+    float leftThreshold = minX_actual + x_width * 0.20f;
+    float rightThreshold = maxX_actual - x_width * 0.20f;
 
 
-    // 3. Filter vertices into left and right side lists, applying Z filter
     std::vector<vec3> leftSidePoints;
     std::vector<vec3> rightSidePoints;
 
-    // Z-filter: keep points within a central band of the cephalothorax's Z extent.
-    // This uses a Z range similar to the original code's intent.
+
     const float filter_z_abs_limit = 0.9f * (ABDOMEN_RADIUS * ABDOMEN_SCALE_Z);
 
     for (const vec3& vertex : _vertexPositionsNormal) {
         if (std::abs(vertex.z) > filter_z_abs_limit) {
-            continue; // Skip points at the very front or back
+            continue;
         }
 
         if (vertex.x < leftThreshold) {
@@ -236,14 +213,11 @@ std::vector<vec3> Cephalothorax::getLegAttachmentPoints() const {
         }
     }
 
-    // 4. Sort side points by Z coordinate
     auto compareByZ = [](const vec3& a, const vec3& b) { return a.z < b.z; };
     std::sort(leftSidePoints.begin(), leftSidePoints.end(), compareByZ);
     std::sort(rightSidePoints.begin(), rightSidePoints.end(), compareByZ);
 
-    // 5. Helper lambda to find the point in a sorted list closest to a target Z value
     auto findClosestToZ = [](const std::vector<vec3>& sorted_points, float target_z) -> vec3 {
-        // Assumes sorted_points is not empty, which is handled by the calling logic.
         if (sorted_points.size() == 1) {
             return sorted_points[0];
         }
@@ -254,17 +228,14 @@ std::vector<vec3> Cephalothorax::getLegAttachmentPoints() const {
         if (it == sorted_points.begin()) return *it;
         if (it == sorted_points.end()) return sorted_points.back();
 
-        // Check if (it) or (it-1) is closer
         float dist_it = std::abs(it->z - target_z);
         float dist_prev_it = std::abs((it - 1)->z - target_z);
         return (dist_it < dist_prev_it) ? *it : *(it - 1);
     };
 
-    // 6. Generate 4 attachment points for each side
     std::vector<vec3> final_left_points(points_per_side);
     std::vector<vec3> final_right_points(points_per_side);
 
-    // Process Left Side
     if (leftSidePoints.empty()) {
         float representative_x = minX_actual * 0.85f; // Default X for left side
          if (representative_x > -0.01f && representative_x < 0.0f) representative_x = -cephRadiusX * 0.85f; // ensure it's reasonably placed if minX_actual was near 0
@@ -287,7 +258,6 @@ std::vector<vec3> Cephalothorax::getLegAttachmentPoints() const {
         }
     }
 
-    // Process Right Side
     if (rightSidePoints.empty()) {
         float representative_x = maxX_actual * 0.85f; // Default X for right side
         if (representative_x < 0.01f && representative_x > 0.0f) representative_x = cephRadiusX * 0.85f; // ensure it's reasonably placed if maxX_actual was near 0
@@ -299,7 +269,7 @@ std::vector<vec3> Cephalothorax::getLegAttachmentPoints() const {
     } else {
         float z_min = rightSidePoints.front().z;
         float z_max = rightSidePoints.back().z;
-         if (z_min >= z_max - 0.01f) { // All points at effectively the same Z
+         if (z_min >= z_max - 0.01f) {
             for (int i = 0; i < points_per_side; ++i) final_right_points[i] = rightSidePoints.front();
         } else {
             for (int i = 0; i < points_per_side; ++i) {
@@ -310,7 +280,6 @@ std::vector<vec3> Cephalothorax::getLegAttachmentPoints() const {
         }
     }
 
-    // 7. Combine left and right points into the final list, setting Y=0
     for (int i = 0; i < points_per_side; ++i) {
         attachmentPoints.emplace_back(final_left_points[i].x, 0.0f, final_left_points[i].z);
         attachmentPoints.emplace_back(final_right_points[i].x, 0.0f, final_right_points[i].z);
@@ -320,7 +289,6 @@ std::vector<vec3> Cephalothorax::getLegAttachmentPoints() const {
 }
 
 vec3 Cephalothorax::getHeadAnchorPoint() const {
-    // Find the vertex with the minimum Z value (most forward point)
     vec3 headPoint(0.0f, 0.0f, 0.0f);
     float maxZ = -std::numeric_limits<float>::max();
 
