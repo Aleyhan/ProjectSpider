@@ -11,7 +11,6 @@
 #include "spider/Abdomen.h"
 #include <vector>
 #include <iomanip>
-#include "../external/stb_easy_font.h"
 
 #include "spider/LegSegment.h"
 #include "obstacle/Obstacle.h"
@@ -445,60 +444,6 @@ int main() {
         glPopMatrix();
         glMatrixMode(GL_MODELVIEW);
 
-        // Score box (top-right corner)
-        char scoreText[32];
-        snprintf(scoreText, sizeof(scoreText), "Score: %d", score);
-        char textBuffer[99999];
-
-        glMatrixMode(GL_PROJECTION);
-        glPushMatrix();
-        glLoadIdentity();
-        glOrtho(0, 800, 600, 0, -1, 1); // top-left origin
-
-        glMatrixMode(GL_MODELVIEW);
-        glPushMatrix();
-        glLoadIdentity();
-        glDisable(GL_DEPTH_TEST);
-
-        // Draw white background box
-        glColor3f(1.0f, 1.0f, 1.0f);
-        float boxWidth = 110;
-        float boxHeight = 24;
-        float boxX = 800 - boxWidth - 20; // Increase margin from right edge
-        float boxY = 10; // Top margin
-
-        glBegin(GL_QUADS);
-        glVertex2f(boxX, boxY);
-        glVertex2f(boxX + boxWidth, boxY);
-        glVertex2f(boxX + boxWidth, boxY + boxHeight);
-        glVertex2f(boxX, boxY + boxHeight);
-        glEnd();
-
-        // Draw red border
-        glLineWidth(2.0f);  // Ensure the line is thick enough to see
-        glColor3f(1.0f, 0.0f, 0.0f); // red
-        glBegin(GL_LINE_LOOP);
-        glVertex2f(boxX, boxY);
-        glVertex2f(boxX + boxWidth, boxY);
-        glVertex2f(boxX + boxWidth, boxY + boxHeight);
-        glVertex2f(boxX, boxY + boxHeight);
-        glEnd();
-
-        glPushMatrix();
-        glTranslatef(boxX + 8, boxY + 6, 0); // Slight padding inside box
-        glColor3f(0.0f, 0.0f, 0.0f);
-        glEnableClientState(GL_VERTEX_ARRAY);
-        int quads = stb_easy_font_print(0, 0, scoreText, nullptr, textBuffer, sizeof(textBuffer));
-        glVertexPointer(2, GL_FLOAT, 16, textBuffer);
-        glDrawArrays(GL_QUADS, 0, quads * 4);
-        glDisableClientState(GL_VERTEX_ARRAY);
-        glPopMatrix();
-
-        glEnable(GL_DEPTH_TEST);
-        glPopMatrix();
-        glMatrixMode(GL_PROJECTION);
-        glPopMatrix();
-        glMatrixMode(GL_MODELVIEW);
 
         glfwSwapBuffers(window);
         glfwPollEvents();
